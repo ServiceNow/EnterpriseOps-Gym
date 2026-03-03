@@ -1,0 +1,37 @@
+{
+    "teams": {
+        "DOMAIN": "teams",
+        "MCP_NAME": "gym-teams-mcp",
+        "MCP_ENDPOINT": "http://localhost:8002"
+    },
+    "csm": {
+        "DOMAIN": "csm",
+        "MCP_NAME": "sn-csm-server",
+        "MCP_ENDPOINT": "http://localhost:8001"
+    },
+    "email": {
+        "DOMAIN": "email",
+        "MCP_NAME": "gym-email-mcp",
+        "MCP_ENDPOINT": "http://localhost:8004"
+    },
+    "itsm": {
+        "DOMAIN": "itsm",
+        "MCP_NAME": "gym-itsm-mcp",
+        "MCP_ENDPOINT": "http://localhost:8006"
+    },
+    "calendar": {
+        "DOMAIN": "calendar",
+        "MCP_NAME": "gym-calendar",
+        "MCP_ENDPOINT": "http://localhost:8003"
+    },
+    "hr": {
+        "DOMAIN": "hr",
+        "MCP_NAME": "sn-hr-internal",
+        "MCP_ENDPOINT": "http://localhost:8008"
+    },
+    "drive": {
+        "DOMAIN": "drive",
+        "MCP_NAME": "gym-google-drive-mcp",
+        "MCP_ENDPOINT": "http://localhost:8009"
+    }
+}
