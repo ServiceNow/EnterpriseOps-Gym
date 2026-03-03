@@ -3,7 +3,9 @@ data/
 Domain Wise DBs and Task-DB Mappings/
 results/
 logs/
-*pyc
+*.pyc
+__pycache__/
 .venv/
+.DS_Store
 # .env contains cloud credentials (AWS, GCP) — never commit
 .env
