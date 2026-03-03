@@ -1,0 +1,9 @@
+conf/
+data/
+Domain Wise DBs and Task-DB Mappings/
+results/
+logs/
+*pyc
+.venv/
+# .env contains cloud credentials (AWS, GCP) — never commit
+.env

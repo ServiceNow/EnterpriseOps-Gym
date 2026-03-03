@@ -9,7 +9,7 @@
   <a href="https://github.com/ServiceNow/EnterpriseOps-Gym/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey" /></a>
 </p>
 
-<p><i>A large-scale agentic benchmark for LLM agents on enterprise operations tasks</i></p>
+<p><i>EnterpriseOps-Gym is a containerized, resettable enterprise simulation benchmark for evaluating LLM agents on stateful, multi-step planning and tool use across realistic enterprise workflows</i></p>
 
 <p><b>Authors</b></p>
 
