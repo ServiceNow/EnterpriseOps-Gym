@@ -1,0 +1,12 @@
+conf/
+data/
+Domain Wise DBs and Task-DB Mappings/
+results/
+logs/
+*.pyc
+__pycache__/
+.venv/
+.DS_Store
+# .env contains cloud credentials (AWS, GCP) — never commit
+.env
+uv.lock
