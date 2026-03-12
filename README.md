@@ -50,7 +50,9 @@ Unlike static datasets, tasks run against live MCP servers and are evaluated by 
 - 📏 **89k avg context length** per task
 - 🏆 Best model achieves only **34.1%** success rate — significant headroom for improvement
 
-![EnterpriseOps-Gym Overview](assets/teaser.png)
+<div align="center">
+<img src="assets/teaser.png" alt="EnterpriseOps-Gym Overview" width="100%" />
+</div>
 
 ---
 
