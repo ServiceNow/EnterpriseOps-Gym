@@ -118,6 +118,7 @@ class BenchmarkExecutor:
             max_tokens=self.llm_config.max_tokens,
             top_p=self.llm_config.top_p,
             effort=self.llm_config.effort,
+            reasoning=self.llm_config.reasoning,
         )
 
         # Initialize verifier engine (multi-gym aware)
@@ -147,6 +148,7 @@ class BenchmarkExecutor:
             max_tokens=planner_llm_config.max_tokens,
             top_p=planner_llm_config.top_p,
             effort=planner_llm_config.effort,
+            reasoning=planner_llm_config.reasoning,
         )
         self.planner_llm_client.llm = self.planner_llm_client.llm.with_retry(
             retry_if_exception_type=(Exception,),

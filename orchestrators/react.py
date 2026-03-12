@@ -38,6 +38,12 @@ class ReactOrchestrator(AgentOrchestrator):
             response = await self.llm_client.invoke_with_tools(
                 messages, self.available_tools
             )
+            reasoning_details = (getattr(response, "additional_kwargs", None) or {}).get(
+                "reasoning_details"
+            )
+            if reasoning_details:
+                logger.debug(f"Preserving reasoning_details for next turn ({len(reasoning_details)} items)")
+
             messages.append(response)
 
             usage_metadata = (

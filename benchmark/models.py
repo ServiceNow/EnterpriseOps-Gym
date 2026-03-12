@@ -94,3 +94,4 @@ class LLMConfig:
     max_tokens: int = 4096
     top_p: Optional[float] = None
     effort: Optional[str] = None
+    reasoning: Optional[dict] = None

@@ -3,7 +3,7 @@
 <h1><img src="assets/csmgym.png" alt="EnterpriseOps-Gym Logo" width="48" style="vertical-align:middle; margin-right:10px;" /> EnterpriseOps-Gym: Environments and Evaluations for Stateful Agentic Planning and Tool Use in Enterprise Settings</h1>
 
 <p>
-  <a href="#"><img src="https://img.shields.io/badge/Website-green?logo=googlechrome&logoColor=white" /></a>
+  <a href="https://enterpriseops-gym.github.io/"><img src="https://img.shields.io/badge/Website-green?logo=googlechrome&logoColor=white" /></a>
   <a href="#"><img src="https://img.shields.io/badge/Paper-blue?logo=arxiv&logoColor=white" /></a>
 <a href="https://huggingface.co/datasets/ServiceNow-AI/EnterpriseOps-Gym"><img src="https://img.shields.io/badge/🤗_Dataset-yellow" /></a>
   <a href="https://github.com/ServiceNow/EnterpriseOps-Gym/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey" /></a>
@@ -151,6 +151,7 @@ LLM configs live in `conf/llm/<name>.json`. Use an array for load-balanced pools
 | `llm_region` | — | Region for `aws_bedrock` / `googlevertexai` |
 | `temperature` | — | Default `0.0` |
 | `max_tokens` | — | Default `4096` |
+| `reasoning` | - | Reasoning Parameters |
 
 ```json
 {
@@ -206,7 +207,7 @@ python ray_experiment_queue.py --experiment_config conf/ray/experiment.json
 
 ### Option B — Direct
 
-Run a single domain/mode without Ray:
+Run a single domain/mode without Ray. **Use this option for the `hybrid` domain.**
 
 ```bash
 python evaluate.py \
@@ -216,6 +217,18 @@ python evaluate.py \
     --output_folder results/react/gpt-4.1-mini/teams/oracle \
     --orchestrator react \
     --concurrency 4 --num_runs 1
+```
+
+For hybrid tasks:
+
+```bash
+python evaluate.py \
+    --hf_dataset ServiceNow-AI/EnterpriseOps-Gym \
+    --domain hybrid --mode oracle \
+    --llm_config conf/llm/gpt-4.1-mini.json \
+    --output_folder results/react/gpt-4.1-mini/hybrid/oracle \
+    --orchestrator react \
+    --concurrency 2 --num_runs 1
 ```
 
 **Orchestrators:**

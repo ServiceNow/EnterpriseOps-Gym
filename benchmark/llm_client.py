@@ -22,6 +22,7 @@ class LLMClient:
         max_tokens: int = 4096,
         top_p: Optional[float] = None,
         effort: Optional[str] = None,
+        reasoning: Optional[dict] = None,
     ):
         self.provider = provider.lower()
         self.model = model
@@ -33,6 +34,7 @@ class LLMClient:
         self.max_tokens = max_tokens
         self.top_p = top_p
         self.effort = effort
+        self.reasoning = reasoning
         self.llm = None
 
         self._initialize_llm()
@@ -115,6 +117,13 @@ class LLMClient:
                     model_kwargs["top_p"] = self.top_p
                 if self.effort is not None:
                     model_kwargs["reasoning_effort"] = self.effort
+                if "extra_body" not in model_kwargs:
+                        model_kwargs["extra_body"] = {}
+                if self.reasoning:
+                    model_kwargs["extra_body"]["reasoning"] = self.reasoning
+                if self.custom_api_version:
+                    model_kwargs["extra_body"]["api_version"] = self.custom_api_version
+
                 # vLLM exposes an OpenAI-compatible API
                 self.llm = ChatOpenAI(
                     model=self.model,
