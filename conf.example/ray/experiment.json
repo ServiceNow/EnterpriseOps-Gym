@@ -1,0 +1,13 @@
+{
+    "llms": ["my-model"],
+    "domains": ["teams", "csm", "email"],
+    "modes": ["oracle", "plus_5_tools", "plus_10_tools", "plus_15_tools"],
+    "orchestrator": "react",
+    "num_runs": 1,
+    "num_llm_instances": 1,
+    "path_templates": {
+        "log_dir": "logs/{orchestrator}/{llm}/{domain}/{mode}",
+        "output_folder": "results/{orchestrator}/{llm}/{domain}/{mode}",
+        "llm_config": "conf/llm/{llm}.json"
+    }
+}

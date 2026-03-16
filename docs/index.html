@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EnterpriseOps-Gym: Environments and Evaluations for Stateful Agentic Planning and Tool Use in Enterprise
+    Settings</title>
+  <meta name="description"
+    content="EnterpriseOps-Gym is a large-scale agentic benchmark evaluating LLM agents on 1,150 expert-curated tasks across 8 enterprise domains in a fully interactive, containerized environment.">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Favicon -->
+  <link rel="icon" href="csmgym.png" type="image/png">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <!-- ========== NAVBAR ========== -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="#" class="nav-brand">
+        <img src="assets/csmgym.png" alt="EnterpriseOps-Gym Logo">
+        <span>EnterpriseOps-Gym</span>
+      </a>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">☰</button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#abstract">Abstract</a></li>
+        <li><a href="#highlights">Highlights</a></li>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#leaderboard">Leaderboard</a></li>
+        <li><a href="#citation">Citation</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ========== HERO ========== -->
+  <section class="hero">
+    <div class="container">
+      <h1>
+        <span class="gradient-text">EnterpriseOps-Gym</span><br>
+        Environments and Evaluations for Stateful<br>Agentic Planning and Tool Use
+      </h1>
+
+      <p class="hero-subtitle">
+        A large-scale agentic benchmark for enterprise evaluating LLM agents on <strong>1,150 expert-curated tasks</strong> across
+        <strong>8 enterprise domains</strong> in fully interactive, containerized environments.
+      </p>
+
+      <!-- Authors -->
+      <div class="authors">
+        <div class="authors-list">
+          <span><span class="author-name equal-contrib">Shiva Krishna Reddy Malay*</span></span>
+          <span><span class="author-name equal-contrib">Shravan Nayak*</span></span>
+          <span><span class="author-name">Jishnu Sethumadhavan Nair</span></span>
+          <span><span class="author-name">Aman Tiwari</span></span>
+          <span><span class="author-name">Sathwik Tejaswi Madhusudhan</span></span>
+          <span><span class="author-name">Sagar Davasam</span></span>
+          <span><span class="author-name">Sridhar Krishna Nemala</span></span>
+          <span><span class="author-name">Srinivas Sunkara</span></span>
+          <span><span class="author-name">Sai Rajeswar</span></span>
+        </div>
+      </div>
+
+      <div class="affiliations">
+        <span><sup>*</sup>Equal Contribution</span>
+        <span>ServiceNow Research</span>
+        <span>Mila – Quebec AI Institute</span>
+        <span>Université de Montréal</span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="hero-actions">
+        <a href="#" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14,2 14,8 20,8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10,9 9,9 8,9" />
+          </svg>
+          Paper
+        </a>
+        <a href="https://github.com/ServiceNow/EnterpriseOps-Gym" class="btn btn-secondary" target="_blank">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
+          </svg>
+          GitHub
+        </a>
+        <a href="https://huggingface.co/datasets/ServiceNow-AI/EnterpriseOps-Gym" class="btn btn-secondary"
+          target="_blank">
+          <span>🤗</span>
+          Dataset
+        </a>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-strip reveal">
+        <div class="stat-card">
+          <div class="stat-icon">🛠️</div>
+          <div class="stat-value" data-target="512">0</div>
+          <div class="stat-label">Tools</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📋</div>
+          <div class="stat-value" data-target="1150">0</div>
+          <div class="stat-label">Tasks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🗄️</div>
+          <div class="stat-value" data-target="164">0</div>
+          <div class="stat-label">DB Tables</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🏢</div>
+          <div class="stat-value" data-target="8">0</div>
+          <div class="stat-label">Domains</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== ABSTRACT ========== -->
+  <section id="abstract">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-tag">Abstract</span>
+        <h2 class="section-title">What is EnterpriseOps-Gym?</h2>
+      </div>
+      <div class="abstract-content reveal">
+        <p>
+          Large language models are shifting from passive information providers to active agents intended for complex
+          workflows. However, their deployment as reliable <em>AI workers</em> in enterprise is stalled by benchmarks
+          that fail to capture the intricacies of professional environments — specifically, the need for
+          <strong>long-horizon planning</strong> amidst persistent state changes and strict access protocols.
+        </p>
+        <br>
+        <p>
+          We introduce <strong>EnterpriseOps-Gym</strong>, a benchmark designed to evaluate agentic planning in
+          realistic enterprise settings. It features a containerized sandbox with <strong>164 database tables</strong>
+          and <strong>512 functional tools</strong> to mimic real-world search friction. Agents are evaluated on
+          <strong>1,150 expert-curated tasks</strong> across <strong>8 mission-critical verticals</strong> including
+          Customer Service, HR, and IT.
+        </p>
+        <br>
+        <p>
+          Our evaluation of <strong>14 frontier models</strong> reveals critical limitations in state-of-the-art
+          models: the top-performing <strong>Claude Opus 4.5 achieves only 37.4% success</strong>. Providing oracle
+          human plans improves performance by <strong>14–35 percentage points</strong>, pinpointing
+          <strong>strategic reasoning</strong> as the primary bottleneck. Additionally, agents frequently fail to
+          refuse infeasible tasks (best model achieves only <strong>53.9%</strong>), leading to unintended and
+          potentially harmful side effects. Our findings underscore that current agents are not yet ready for
+          autonomous enterprise deployment.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== HIGHLIGHTS ========== -->
+  <section id="highlights">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-tag">Key Contributions</span>
+        <h2 class="section-title">What Makes EnterpriseOps-Gym Unique</h2>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon purple">🗄️</div>
+          <h3>Unprecedented Ecosystem Scale</h3>
+          <p>A containerized sandbox with <strong>512 functional tools</strong> and <strong>164 relational
+              tables</strong> — an order of magnitude larger than prior enterprise benchmarks — providing a true stress
+            test for navigating high-density schemas and massive toolkits.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon blue">✅</div>
+          <h3>SQL-Based Outcome Verification</h3>
+          <p>Instead of soft LLM-as-a-judge or action-trace matching, hidden <strong>expert-authored SQL
+              scripts</strong> verify the final database state — ensuring agents achieve the correct business outcome
+            while maintaining data integrity.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon green">🔒</div>
+          <h3>Policy-Governed Operations</h3>
+          <p>Tasks embed real <strong>internal business policies</strong> — data access controls, approval workflows,
+            and privacy rules — shifting evaluation from simple tool use to governed autonomous operations typical of
+            regulated industries.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon orange">�</div>
+          <h3>Cross-Domain Orchestration</h3>
+          <p>Unique <strong>Hybrid</strong> scenarios require agents to coordinate across 8 interconnected ecosystems —
+            e.g., resolving a CSM ticket by checking HR records and updating a Teams channel — reflecting real
+            enterprise fragmentation.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon pink">�</div>
+          <h3>Infeasibility &amp; Refusal Testing</h3>
+          <p>A dedicated subset of <strong>infeasible tasks</strong> evaluates an agent's safety reasoning — agents must
+            identify and refuse requests that violate organizational policies or system constraints, preventing harmful
+            actions or data leaks.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon indigo">�</div>
+          <h3>Long-Horizon Stateful Trajectories</h3>
+          <p>Tasks require up to <strong>34 sequential steps</strong> in a stateful ReAct loop where every action
+            permanently affects the shared database, demanding committed, multi-step planning rather than greedy tool
+            calls.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== OVERVIEW FIGURE ========== -->
+  <section id="overview">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-tag">Framework Overview</span>
+        <h2 class="section-title">Architecture & Task Flow</h2>
+      </div>
+      <figure class="overview-figure reveal">
+        <img src="assets/teaser.png"
+          alt="EnterpriseOps-Gym Overview — showing the task domains, MCP servers, agent interaction loop, and SQL-based verification pipeline">
+        <figcaption>
+          <strong>Figure 1:</strong> Overview of EnterpriseOps-Gym. Tasks are sampled from 8 enterprise domains, each
+          served by containerized MCP servers. Agents interact through tool calls, and outcomes are verified by
+          SQL-based state checks on the environment database.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ========== LEADERBOARD ========== -->
+  <section id="leaderboard">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-tag">Benchmark Results</span>
+        <h2 class="section-title">Leaderboard</h2>
+      </div>
+
+      <div class="leaderboard-wrapper reveal">
+        <div class="leaderboard-header">
+          <div>
+            <h3>Oracle Mode — Task Success Rate (%)</h3>
+            <p class="leaderboard-meta">A task passes only if <strong>all</strong> verification conditions are met.
+              Click column headers to sort.</p>
+          </div>
+          <div class="leaderboard-tabs">
+            <button class="leaderboard-tab active" data-filter="all">All Models</button>
+            <button class="leaderboard-tab" data-filter="closed">Closed Source</button>
+            <button class="leaderboard-tab" data-filter="open">Open Source</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="leaderboard-table" id="leaderboardTable">
+            <thead>
+              <tr>
+                <th data-col="rank"># <span class="sort-arrow">↕</span></th>
+                <th data-col="model">Model <span class="sort-arrow">↕</span></th>
+                <th data-col="teams">Teams <span class="sort-arrow">↕</span></th>
+                <th data-col="csm">CSM <span class="sort-arrow">↕</span></th>
+                <th data-col="email">Email <span class="sort-arrow">↕</span></th>
+                <th data-col="itsm">ITSM <span class="sort-arrow">↕</span></th>
+                <th data-col="calendar">Calendar <span class="sort-arrow">↕</span></th>
+                <th data-col="hr">HR <span class="sort-arrow">↕</span></th>
+                <th data-col="drive">Drive <span class="sort-arrow">↕</span></th>
+                <th data-col="hybrid">Hybrid <span class="sort-arrow">↕</span></th>
+                <th data-col="avg" class="col-avg">Avg <span class="sort-arrow">↓</span></th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardBody">
+              <!-- Rows injected by script.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CITATION ========== -->
+  <section id="citation">
+    <div class="container">
+      <div class="section-header reveal">
+        <span class="section-tag">Cite Our Work</span>
+        <h2 class="section-title">Citation</h2>
+      </div>
+      <div class="citation-block reveal">
+        <button class="copy-btn" id="copyBibtex">Copy</button>
+        <pre id="bibtexContent">@misc{enterpriseopsgym2026,
+  title     = {EnterpriseOps-Gym: Environments and Evaluations for Stateful Agentic Planning and Tool Use in Enterprise Settings},
+  author    = {Malay, Shiva Krishna Reddy and Nayak, Shravan and Nair, Jishnu Sethumadhavan and Tiwari, Aman and Madhusudhan, Sathwik Tejaswi and Davasam, Sagar and Nemala, Sridhar Krishna and Sunkara, Srinivas and Rajeswar, Sai},
+  year      = {2026}
+}</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="footer">
+    <div class="container">
+      <p>
+        EnterpriseOps-Gym &copy; 2026 &mdash;
+        <a href="https://www.servicenow.com/" target="_blank">ServiceNow Research</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="script.js"></script>
+</body>
+
+</html>

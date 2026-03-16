@@ -1,0 +1,8 @@
+{
+    "llm_provider": "openrouter",
+    "llm_model": "moonshotai/kimi-k2-thinking",
+    "llm_api_key": "sk-or-v1-<your-api-key>",
+    "llm_api_endpoint": "https://openrouter.ai/api/v1",
+    "temperature": 1.0,
+    "max_tokens": 16192
+}
