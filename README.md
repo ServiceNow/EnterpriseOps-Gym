@@ -324,9 +324,13 @@ We release 60% of the benchmark samples in the public split. For completeness, w
 ## 📚 Citation
 
 ```bibtex
-@misc{enterpriseopsgym2026,
-  title  = {EnterpriseOps-Gym: Environments and Evaluations for Stateful Agentic Planning and Tool Use in Enterprise Settings},
-  author = {},
-  year   = {2026}
+@misc{malay2026enterpriseopsgymenvironmentsevaluationsstateful,
+      title={EnterpriseOps-Gym: Environments and Evaluations for Stateful Agentic Planning and Tool Use in Enterprise Settings}, 
+      author={Shiva Krishna Reddy Malay and Shravan Nayak and Jishnu Sethumadhavan Nair and Sagar Davasam and Aman Tiwari and Sathwik Tejaswi Madhusudhan and Sridhar Krishna Nemala and Srinivas Sunkara and Sai Rajeswar},
+      year={2026},
+      eprint={2603.13594},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2603.13594}, 
 }
 ```
