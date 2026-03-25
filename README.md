@@ -27,7 +27,7 @@ Sai Rajeswar<sup>1,2,3</sup>
 
 <p>
   <sup>*</sup>Equal contribution &nbsp;|&nbsp;
-  <sup>1</sup>ServiceNow Research &nbsp;|&nbsp;
+  <sup>1</sup>ServiceNow AI Research &nbsp;|&nbsp;
   <sup>2</sup>Mila – Quebec AI Institute &nbsp;|&nbsp;
   <sup>3</sup>Université de Montréal
 </p>
