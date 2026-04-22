@@ -62,6 +62,7 @@ Unlike static datasets, tasks run against live MCP servers and are evaluated by 
 - [🔧 Prerequisites](#-prerequisites)
 - [🚀 Running the Benchmark](#-running-the-benchmark)
 - [📊 Scoring](#-scoring)
+- [🌐 Prime Intellect Environment](#-prime-intellect-environment)
 - [🏆 Leaderboard](#-leaderboard)
 - [📚 Citation](#-citation)
 
@@ -121,24 +122,16 @@ unzip gym_dbs.zip
 Each domain requires a running MCP server. Pull and start the Docker image for each domain:
 
 ```bash
-docker pull shivakrishnareddyma225/enterpriseops-gym-mcp-<domain>:latest
-docker run -d -p <host_port>:<container_port> shivakrishnareddyma225/enterpriseops-gym-mcp-<domain>:latest
+docker run -d -p 8001:8005 shivakrishnareddyma225/enterpriseops-gym-mcp-csm:latest
+docker run -d -p 8002:8005 shivakrishnareddyma225/enterpriseops-gym-mcp-teams:latest
+docker run -d -p 8003:8003 shivakrishnareddyma225/enterpriseops-gym-mcp-calendar:latest
+docker run -d -p 8004:8005 shivakrishnareddyma225/enterpriseops-gym-mcp-email:latest
+docker run -d -p 8006:8005 shivakrishnareddyma225/enterpriseops-gym-mcp-itsm:latest
+docker run -d -p 8008:8005 shivakrishnareddyma225/enterpriseops-gym-mcp-hr:latest
+docker run -d -p 8009:8005 shivakrishnareddyma225/enterpriseops-gym-mcp-drive:latest
 ```
 
-Default ports:
-
-| Domain | MCP Server | Port |
-|--------|-----------|------|
-| `teams` | `gym-teams-mcp` | 8002 |
-| `csm` | `sn-csm-server` | 8001 |
-| `email` | `gym-email-mcp` | 8004 |
-| `itsm` | `gym-itsm-mcp` | 8006 |
-| `calendar` | `gym-calendar` | 8003 |
-| `hr` | `sn-hr-internal` | 8008 |
-| `drive` | `gym-google-drive-mcp` | 8009 |
-| `<container_port>` | N/A | 8005 |
-
-Update `conf/ray/domain_conf.json` if you use non-default ports. For `calendar` use 8003 as the container_port. 
+Update `conf/ray/domain_conf.json` if you use non-default host ports. For `calendar` use 8003 as the container port, and 8005 for the other domains.
 
 ### 2. LLM Config
 
@@ -274,6 +267,61 @@ Output:
 
 ---
 
+## 🌐 Prime Intellect Environment
+
+EnterpriseOps-Gym is published on [Prime Intellect's Environment Hub](https://app.primeintellect.ai/dashboard/environments) as a [Verifiers](https://github.com/PrimeIntellect-ai/verifiers) environment. Install it from the hub and evaluate locally.
+
+### Install from the Environment Hub
+
+```bash
+prime env install joseph-marinier/enterpriseops-gym-env
+```
+
+Or install locally from the repo:
+
+```bash
+uv sync --extra prime-intellect
+```
+
+### Usage
+
+```python
+import verifiers as vf
+
+# Via Verifiers discovery (after prime env install):
+env = vf.load_environment("enterpriseops-gym-env", gym_dbs_path="./gym_dbs", domains=["teams"])
+
+# Or import directly:
+from enterpriseops_gym_env import load_environment
+env = load_environment(gym_dbs_path="./gym_dbs", mode="oracle", domains=["teams"])
+
+# Evaluate
+client = vf.ClientConfig(
+    client_type="openai_chat_completions",
+    api_key_var="OPENAI_API_KEY",
+    api_base_url="https://api.openai.com/v1",
+)
+results = env.evaluate_sync(client=client, model="gpt-4.1")
+```
+
+### Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `server_urls` | localhost standard ports | MCP server name → URL mapping |
+| `gym_dbs_path` | `"gym_dbs"` | Path to extracted SQL seed files |
+| `hf_dataset` | `ServiceNow-AI/EnterpriseOps-Gym` | HuggingFace dataset |
+| `mode` | `"oracle"` | Tool-set mode |
+| `domains` | All 8 domains | Which domains to include |
+| `max_turns` | `50` | Max agent turns per task |
+| `llm_client` | `None` | `LLMClient` instance for `response_check` verifiers |
+
+### Limitations
+
+- **Local evaluation only** — MCP servers run as Docker containers that must be started before evaluation. Prime Intellect's hosted evaluation (`prime eval run`) is not supported since it cannot access local Docker containers. Use `env.evaluate_sync()` locally instead.
+
+---
+
 ## 🏆 Leaderboard
 
 Task success rate (%) on Oracle mode on the full benchmark. A task passes only if **all** verification conditions are met.
@@ -319,6 +367,7 @@ We release 60% of the benchmark samples in the public split. For completeness, w
 | Qwen3-30B (Think) | 21.3 | 5.0 | 53.7 | 8.7 | 18.0 | 8.8 | 26.6 | 11.4 | 17.0 |
 | Qwen3-235B (Inst.) | 29.5 | 4.0 | 41.8 | 10.7 | 23.0 | 14.7 | 31.2 | 19.3 | 19.6 |
 | Qwen3-4B (Think) | 23.0 | 3.0 | 37.3 | 5.8 | 4.9 | 7.8 | 23.4 | 15.9 | 13.6 |
+
 ---
 
 ## 📚 Citation
