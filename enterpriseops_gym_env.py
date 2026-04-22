@@ -58,9 +58,6 @@ def _run_sync(coro: Any) -> Any:
         return pool.submit(asyncio.run, coro).result()
 
 
-def _noop(**_kw: Any) -> None:  # noqa: D401
-    """Placeholder callable for ``tool_map``; never invoked because ``call_tool`` is overridden."""
-
 
 def _parse_info(raw: str | dict[str, Any]) -> dict[str, Any]:
     """Deserialize the info field, which is stored as a JSON string in the dataset."""
@@ -109,13 +106,6 @@ class EOpsGymEnv(vf.ToolEnv):
     then per rollout: seeds fresh databases, scopes the tool set to the task's
     ``selected_tools``, runs the agent loop, scores via the benchmark's
     ``VerifierEngine``, and cleans up databases.
-
-    Note:
-        Concurrent rollouts are not supported. Each task has a different ``selected_tools``
-        subset, and the current implementation applies this by mutating ``self.tool_defs``
-        on the shared environment instance. With ``max_workers > 1``, concurrent rollouts
-        would see each other's tool sets. This is enforced by clamping ``max_workers=1``
-        in the constructor. See the README for ideas on lifting this limitation.
     """
 
     def __init__(
@@ -126,13 +116,6 @@ class EOpsGymEnv(vf.ToolEnv):
         llm_client: LLMClient | None = None,
         **kwargs: Any,
     ):
-        if kwargs.get("max_workers", 1) != 1:
-            logger.warning(
-                "EOpsGymEnv does not support concurrent rollouts (per-task tool_defs mutation). "
-                "Forcing max_workers=1."
-            )
-        kwargs["max_workers"] = 1
-
         self.server_urls = server_urls
         self.gym_dbs_path = gym_dbs_path
         self.llm_client = llm_client
@@ -144,7 +127,6 @@ class EOpsGymEnv(vf.ToolEnv):
 
         super().__init__(tools=[], max_turns=max_turns, **kwargs)
         self.tool_defs = list(self._all_tool_defs)
-        self.tool_map = {t.name: _noop for t in self._all_tool_defs}
 
     # -- Init helpers ---------------------------------------------------------
 
@@ -218,10 +200,9 @@ class EOpsGymEnv(vf.ToolEnv):
 
         # Restrict visible tools to this task's selected set
         if selected:
-            self.tool_defs = [t for t in self._all_tool_defs if t.name in selected]
+            state["tool_defs"] = [t for t in self._all_tool_defs if t.name in selected]
         else:
-            self.tool_defs = list(self._all_tool_defs)
-        self.tool_map = {t.name: _noop for t in self.tool_defs}
+            state["tool_defs"] = list(self._all_tool_defs)
 
         return state
 

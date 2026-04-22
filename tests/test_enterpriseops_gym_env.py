@@ -7,18 +7,15 @@ import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from verifiers.types import AssistantMessage, State, ToolCall, ToolMessage as VFToolMessage, TrajectoryStep
 
 from enterpriseops_gym_env import (
     ALL_DOMAINS,
     DEFAULT_SERVER_URLS,
     EOpsGymEnv,
-    _build_dataset,
     _build_rubric,
     _collect_tool_calls,
     _mcp_content_to_str,
-    _noop,
     _parse_info,
     _resolve_sql_path,
 )
@@ -141,20 +138,6 @@ class TestCollectToolCalls:
 
 
 class TestEOpsGymEnvInit:
-    @patch("enterpriseops_gym_env.MCPClient")
-    def test_max_workers_forced_to_one(self, mock_mcp_cls):
-        mock_mcp_cls.return_value = AsyncMock()
-        mock_mcp_cls.return_value.connect.return_value = False
-        import verifiers as vf
-        env = EOpsGymEnv(
-            server_urls={},
-            gym_dbs_path="gym_dbs",
-            max_workers=4,
-            dataset=vf.load_example_dataset("gsm8k"),
-            rubric=vf.Rubric(funcs=[]),
-        )
-        assert env.max_workers == 1
-
     @patch("enterpriseops_gym_env.MCPClient")
     def test_connects_and_discovers_tools(self, mock_mcp_cls):
         mock_client = AsyncMock()
@@ -472,7 +455,7 @@ class TestSetupState:
             "gym_servers_config": [{"mcp_server_name": "srv", "mcp_server_url": "http://localhost:8002"}],
             "selected_tools": ["tool_a", "tool_c"],
         })
-        state = State(input={"info": info, "prompt": [], "answer": ""})
+        state = State(input={"info": info, "prompt": [], "answer": ""}, tool_defs=list(env._all_tool_defs))
 
         async def run():
             return await env.setup_state(state)
@@ -482,9 +465,39 @@ class TestSetupState:
         # No seed file, so no DB created
         assert result["database_ids"] == {}
         assert result["server_url_map"] == {"srv": "http://localhost:8002"}
-        # Tools filtered to selected
-        assert len(env.tool_defs) == 2
-        assert {t.name for t in env.tool_defs} == {"tool_a", "tool_c"}
+        # Tools filtered to selected (set on state, not self)
+        assert len(result["tool_defs"]) == 2
+        assert {t.name for t in result["tool_defs"]} == {"tool_a", "tool_c"}
+        # self._all_tool_defs must not be mutated (concurrent safety)
+        assert len(env._all_tool_defs) == 3
+
+    @patch("enterpriseops_gym_env.create_database_from_file")
+    @patch("enterpriseops_gym_env.MCPClient")
+    def test_empty_selected_tools_gives_all(self, mock_mcp_cls, mock_create_db):
+        mock_client = AsyncMock()
+        mock_client.connect.return_value = True
+        mock_client.list_tools.return_value = [
+            {"name": "tool_a", "description": "A"},
+            {"name": "tool_b", "description": "B"},
+        ]
+        mock_mcp_cls.return_value = mock_client
+
+        import verifiers as vf
+        env = EOpsGymEnv(
+            server_urls={"srv": "http://localhost:8002"},
+            gym_dbs_path="/fake/gym_dbs",
+            dataset=vf.load_example_dataset("gsm8k"),
+            rubric=vf.Rubric(funcs=[]),
+        )
+
+        info = json.dumps({
+            "gym_servers_config": [{"mcp_server_name": "srv", "mcp_server_url": "http://localhost:8002"}],
+            "selected_tools": [],
+        })
+        state = State(input={"info": info, "prompt": [], "answer": ""}, tool_defs=list(env._all_tool_defs))
+
+        result = asyncio.run(env.setup_state(state))
+        assert len(result["tool_defs"]) == 2
 
     @patch("enterpriseops_gym_env._resolve_sql_path", return_value="/fake/db.sql")
     @patch("enterpriseops_gym_env.create_database_from_file")

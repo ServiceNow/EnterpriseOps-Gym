@@ -319,7 +319,6 @@ results = env.evaluate_sync(client=client, model="gpt-4.1")
 ### Limitations
 
 - **Local evaluation only** — MCP servers run as Docker containers that must be started before evaluation. Prime Intellect's hosted evaluation (`prime eval run`) is not supported since it cannot access local Docker containers. Use `env.evaluate_sync()` locally instead.
-- **Single-worker** — concurrent rollouts are not yet supported. Each task uses a different `selected_tools` subset, applied by mutating shared state on the environment instance. The constructor enforces `max_workers=1`. To lift this, per-task tool definitions would need to flow through the rollout state rather than the shared instance.
 
 ---
 
