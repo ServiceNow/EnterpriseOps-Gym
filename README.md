@@ -62,6 +62,7 @@ Unlike static datasets, tasks run against live MCP servers and are evaluated by 
 - [🔧 Prerequisites](#-prerequisites)
 - [🚀 Running the Benchmark](#-running-the-benchmark)
 - [📊 Scoring](#-scoring)
+- [🌐 Prime Intellect Environment](#-prime-intellect-environment)
 - [🏆 Leaderboard](#-leaderboard)
 - [📚 Citation](#-citation)
 
@@ -263,6 +264,62 @@ Output:
 - **Avg Success Rate** — tasks where *all* verifiers passed
 - **Avg Verifier Pass** — average per-verifier pass rate
 - **Files w/ Errors** — agent errors; excluded from averages
+
+---
+
+## 🌐 Prime Intellect Environment
+
+EnterpriseOps-Gym is published on [Prime Intellect's Environment Hub](https://app.primeintellect.ai/dashboard/environments) as a [Verifiers](https://github.com/PrimeIntellect-ai/verifiers) environment. Install it from the hub and evaluate locally.
+
+### Install from the Environment Hub
+
+```bash
+prime env install joseph-marinier/enterpriseops-gym-env
+```
+
+Or install locally from the repo:
+
+```bash
+uv sync --extra prime-intellect
+```
+
+### Usage
+
+```python
+import verifiers as vf
+
+# Via Verifiers discovery (after prime env install):
+env = vf.load_environment("enterpriseops-gym-env", gym_dbs_path="./gym_dbs", domains=["teams"])
+
+# Or import directly:
+from enterpriseops_gym_env import load_environment
+env = load_environment(gym_dbs_path="./gym_dbs", mode="oracle", domains=["teams"])
+
+# Evaluate
+client = vf.ClientConfig(
+    client_type="openai_chat_completions",
+    api_key_var="OPENAI_API_KEY",
+    api_base_url="https://api.openai.com/v1",
+)
+results = env.evaluate_sync(client=client, model="gpt-4.1")
+```
+
+### Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `server_urls` | localhost standard ports | MCP server name → URL mapping |
+| `gym_dbs_path` | `"gym_dbs"` | Path to extracted SQL seed files |
+| `hf_dataset` | `ServiceNow-AI/EnterpriseOps-Gym` | HuggingFace dataset |
+| `mode` | `"oracle"` | Tool-set mode |
+| `domains` | All 8 domains | Which domains to include |
+| `max_turns` | `50` | Max agent turns per task |
+| `llm_client` | `None` | `LLMClient` instance for `response_check` verifiers |
+
+### Limitations
+
+- **Local evaluation only** — MCP servers run as Docker containers that must be started before evaluation. Prime Intellect's hosted evaluation (`prime eval run`) is not supported since it cannot access local Docker containers. Use `env.evaluate_sync()` locally instead.
+- **Single-worker** — concurrent rollouts are not yet supported. Each task uses a different `selected_tools` subset, applied by mutating shared state on the environment instance. The constructor enforces `max_workers=1`. To lift this, per-task tool definitions would need to flow through the rollout state rather than the shared instance.
 
 ---
 
