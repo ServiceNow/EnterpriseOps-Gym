@@ -141,7 +141,6 @@ class LLMClient:
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
                     model_kwargs=model_kwargs,
-                    request_timeout=600,
                 )
             elif self.provider == "qwq":
                 from langchain_qwq import ChatQwQ
