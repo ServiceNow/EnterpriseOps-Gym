@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
-from benchmark.llm_client import LLMClient
+from benchmark.llm_client import LLMClient, get_text_content
 from .base import AgentOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -312,6 +312,7 @@ Now, analyze the task and provide your structured plan."""
         prompt = self.construct_prompt(system_prompt, user_prompt, tools)
         logger.info("🧠 Meta Agent: Generating plan and decomposing into subtasks...")
 
+        response = None
         for attempt in range(max_retries):
             try:
                 response = await self.planner_llm.ainvoke([HumanMessage(content=prompt)])
@@ -323,7 +324,7 @@ Now, analyze the task and provide your structured plan."""
                     f"{usage['input_tokens'] + usage['output_tokens']} tokens"
                 )
 
-                content = extract_json_from_llm_response(response.content)
+                content = extract_json_from_llm_response(get_text_content(response.content))
                 logger.debug(f"Extracted JSON content (attempt {attempt + 1}):\n{content[:500]}")
 
                 parsed = json.loads(content)
@@ -398,7 +399,7 @@ Now, analyze the task and provide your structured plan."""
                     await asyncio.sleep(1)
                 else:
                     logger.error(
-                        f"Response content: {response.content if 'response' in locals() else 'N/A'}"
+                        f"Response content: {get_text_content(response.content) if response is not None else 'N/A'}"
                     )
                     raise ValueError(
                         f"Failed to parse structured plan after {max_retries} attempts: {e}"
@@ -573,14 +574,14 @@ Ready? Begin executing your subtask now."""
 
                 conversation_flow.append({
                     "type": "ai_message",
-                    "content": response.content,
+                    "content": get_text_content(response.content),
                     "tool_calls": [
                         {"name": tc["name"], "args": tc["args"]}
                         for tc in (response.tool_calls or [])
                     ],
                 })
 
-                logger.info(f"  LLM: {response.content[:200]}...")
+                logger.info(f"  LLM: {get_text_content(response.content)[:200]}...")
 
                 messages.append(response)
 
@@ -642,7 +643,7 @@ Ready? Begin executing your subtask now."""
                     usage=total_usage,
                 )
 
-        final_response = messages[-1].content if messages else ""
+        final_response = get_text_content(messages[-1].content) if messages else ""
         summary = final_response or (
             f"Executed {len([c for c in conversation_flow if c['type'] == 'tool_result'])} tool calls"
         )
@@ -746,7 +747,7 @@ If there's nothing worth adding to memory, return: `{{}}`
             response = await self.llm_client.llm.ainvoke(extraction_messages)
 
             extraction_usage = extract_usage_from_response(response)
-            content = extract_json_from_llm_response(response.content)
+            content = extract_json_from_llm_response(get_text_content(response.content))
             memory_updates = json.loads(content)
 
             if not isinstance(memory_updates, dict):

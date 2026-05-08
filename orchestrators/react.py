@@ -5,7 +5,7 @@ import logging
 from typing import Any, Dict, List, TYPE_CHECKING
 
 from benchmark.mcp_client import MCPClient
-from benchmark.llm_client import LLMClient
+from benchmark.llm_client import LLMClient, get_text_content
 from benchmark.models import BenchmarkConfig
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 
@@ -58,7 +58,7 @@ class ReactOrchestrator(AgentOrchestrator):
             conversation_flow.append(
                 {
                     "type": "ai_message",
-                    "content": response.content,
+                    "content": get_text_content(response.content),
                     "usage_metadata": usage_metadata,
                     "response_metadata": response_metadata,
                     "tool_calls": [
@@ -68,7 +68,7 @@ class ReactOrchestrator(AgentOrchestrator):
                 }
             )
 
-            logger.info(f"LLM Response: {response.content}")
+            logger.info(f"LLM Response: {get_text_content(response.content)}")
 
             # Terminate if the LLM decided no further tool calls are needed
             if not response.tool_calls or len(response.tool_calls) == 0:
@@ -117,7 +117,7 @@ class ReactOrchestrator(AgentOrchestrator):
                 )
 
         return {
-            "final_response": messages[-1].content if messages else "",
+            "final_response": get_text_content(messages[-1].content) if messages else "",
             "conversation_flow": conversation_flow,
             "tools_used": tools_used,
             "tool_results": tool_results,
