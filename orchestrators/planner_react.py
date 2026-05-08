@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
-from benchmark.llm_client import LLMClient
+from benchmark.llm_client import LLMClient, get_text_content
 from .base import AgentOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -101,7 +101,7 @@ Remember: This is a strategic plan, not a detailed execution trace. The executor
 
         logger.info("🧠 Meta Agent: Generating execution plan...")
         response = await self.planner_llm.ainvoke([HumanMessage(content=prompt)])
-        plan = response.content
+        plan = get_text_content(response.content)
 
         logger.info(f"✅ Plan generated ({len(plan)} characters)")
         logger.debug(f"Generated plan:\n{plan}")
@@ -230,7 +230,7 @@ Please execute the task following the strategic plan above. Use the available to
             conversation_flow.append(
                 {
                     "type": "ai_message",
-                    "content": response.content,
+                    "content": get_text_content(response.content),
                     "usage_metadata": usage_metadata,
                     "response_metadata": response_metadata,
                     "tool_calls": [
@@ -240,7 +240,7 @@ Please execute the task following the strategic plan above. Use the available to
                 }
             )
 
-            logger.info(f"LLM Response: {response.content}")
+            logger.info(f"LLM Response: {get_text_content(response.content)}")
 
             messages.append(response)
 
@@ -289,7 +289,7 @@ Please execute the task following the strategic plan above. Use the available to
                 )
 
         return {
-            "final_response": messages[-1].content if messages else "",
+            "final_response": get_text_content(messages[-1].content) if messages else "",
             "conversation_flow": conversation_flow,
             "tools_used": tools_used,
             "tool_results": tool_results,

@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from benchmark.llm_client import LLMClient
+from benchmark.llm_client import LLMClient, get_text_content
 from benchmark.mcp_client import MCPClient
 from benchmark.models import VerifierConfig
 
@@ -452,7 +452,7 @@ Please provide your judgment as JSON."""
 
         try:
             response = await self.llm_client.llm.ainvoke(messages)
-            response_text = response.content
+            response_text = get_text_content(response.content)
 
             # Parse JSON response
             # Try to extract JSON from markdown code blocks
