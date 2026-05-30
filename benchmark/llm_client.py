@@ -3,6 +3,19 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+def get_text_content(content) -> str:
+    """Extract plain text from LLM response content.
+
+    Handles both plain strings and lists returned by models with thinking/reasoning
+    blocks (e.g. Claude extended thinking on Bedrock returns a list of content blocks).
+    """
+
+    if isinstance(content, list):
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                return block.get("text", "")
+        return ""
+    return content or ""
 
 class LLMClient:
     """

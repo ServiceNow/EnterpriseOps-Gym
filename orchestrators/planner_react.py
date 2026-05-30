@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
-from benchmark.llm_client import LLMClient
+from benchmark.llm_client import LLMClient, get_text_content
 from .base import AgentOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -101,7 +101,7 @@ Remember: This is a strategic plan, not a detailed execution trace. The executor
 
         logger.info("🧠 Meta Agent: Generating execution plan...")
         response = await self.planner_llm.ainvoke([HumanMessage(content=prompt)])
-        plan = response.content
+        plan = get_text_content(response.content)
 
         logger.info(f"✅ Plan generated ({len(plan)} characters)")
         logger.debug(f"Generated plan:\n{plan}")
