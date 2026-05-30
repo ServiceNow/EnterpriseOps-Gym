@@ -3,6 +3,19 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+def get_text_content(content) -> str:
+    """Extract plain text from LLM response content.
+
+    Handles both plain strings and lists returned by models with thinking/reasoning
+    blocks (e.g. Claude extended thinking on Bedrock returns a list of content blocks).
+    """
+
+    if isinstance(content, list):
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                return block.get("text", "")
+        return ""
+    return content or ""
 
 class LLMClient:
     """
@@ -35,6 +48,8 @@ class LLMClient:
         self.top_p = top_p
         self.effort = effort
         self.reasoning = reasoning
+        # Responses API only when an effort is set for OpenAI/AzureOpenAI endpoints.
+        self.use_responses_api = bool(effort) and self.provider in ("openai", "azureopenai")
         self.llm = None
 
         self._initialize_llm()
@@ -65,11 +80,18 @@ class LLMClient:
             elif self.provider == "openai":
                 from langchain_openai import ChatOpenAI
 
+                model_kwargs = {}
+                if self.top_p is not None:
+                    model_kwargs["top_p"] = self.top_p
+
                 self.llm = ChatOpenAI(
                     model=self.model,
                     openai_api_key=self.api_key,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
+                    model_kwargs=model_kwargs,
+                    use_responses_api=self.use_responses_api,
+                    reasoning_effort=self.effort,
                 )
             elif self.provider == "google":
                 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -97,8 +119,6 @@ class LLMClient:
                 model_kwargs = {}
                 if self.top_p is not None:
                     model_kwargs["top_p"] = self.top_p
-                if self.effort is not None:
-                    model_kwargs["reasoning_effort"] = self.effort
 
                 self.llm = AzureChatOpenAI(
                     azure_endpoint=self.custom_api_endpoint,
@@ -107,7 +127,9 @@ class LLMClient:
                     azure_deployment=self.model,
                     temperature=self.temperature,
                     max_completion_tokens=self.max_tokens,
-                    model_kwargs=model_kwargs # In GPT-5.X this is a first class parameter, but passing this way is also allowed.
+                    model_kwargs=model_kwargs,
+                    use_responses_api=self.use_responses_api, # Required for some reasoning model configurations
+                    reasoning_effort=self.effort,
                 )
             elif self.provider == "vllm" or self.provider == "openrouter":
                 from langchain_openai import ChatOpenAI
@@ -200,6 +222,10 @@ class LLMClient:
                     "parameters": cleaned_schema,
                 },
             }
+            # Responses API defaults to strict mode, which forces the model to fill every
+            # optional param with hallucinated values. Explicit strict=False avoids this.
+            if self.provider in ("openai", "azureopenai") and self.use_responses_api:
+                tool_def["function"]["strict"] = False
             langchain_tools.append(tool_def)
 
         return langchain_tools
@@ -314,7 +340,8 @@ class LLMClient:
         # Convert MCP tools to LangChain format
         langchain_tools = self._convert_mcp_tools_to_langchain(tools)
 
-        # Bind tools to LLM
+        # Bind tools to LLM (the strict=False flag for OpenAI providers is
+        # set on each tool dict in _convert_mcp_tools_to_langchain).
         llm_with_tools = self.llm.bind_tools(langchain_tools)
         llm_with_retry = llm_with_tools.with_retry(
             retry_if_exception_type=(

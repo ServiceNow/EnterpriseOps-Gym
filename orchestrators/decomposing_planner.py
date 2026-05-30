@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
-from benchmark.llm_client import LLMClient
+from benchmark.llm_client import LLMClient, get_text_content
 from .base import AgentOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -323,7 +323,7 @@ Now, analyze the task and provide your structured plan."""
                     f"{usage['input_tokens'] + usage['output_tokens']} tokens"
                 )
 
-                content = extract_json_from_llm_response(response.content)
+                content = extract_json_from_llm_response(get_text_content(response.content))
                 logger.debug(f"Extracted JSON content (attempt {attempt + 1}):\n{content[:500]}")
 
                 parsed = json.loads(content)
