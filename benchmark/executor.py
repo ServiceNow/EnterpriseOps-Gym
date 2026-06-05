@@ -470,8 +470,14 @@ class BenchmarkExecutor:
                 context,
                 gym_name=verifier.gym_name,  # Pass gym_name to use correct MCP client
             )
+            
+            safe_verifier_name = verifier_name
+            suffix_counter = 1
+            while safe_verifier_name in verification_results:
+                safe_verifier_name = f"{verifier_name}_{suffix_counter}"
+                suffix_counter += 1
 
-            verification_results[verifier_name] = result
+            verification_results[safe_verifier_name] = result
 
             # logger.info(f"Verifier result: {'✓ PASSED' if result.get('passed') else '✗ FAILED'}")
             # if not result.get("passed"):
