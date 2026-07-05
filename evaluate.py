@@ -36,11 +36,15 @@ from utils.task_queue_worker import TaskQueueWorker
 from orchestrators.react import ReactOrchestrator
 from orchestrators.planner_react import PlannerReactOrchestrator
 from orchestrators.decomposing_planner import DecomposingPlannerOrchestrator
+from orchestrators.golden import GoldenOrchestrator
+from orchestrators.golden_guided import GoldenGuidedOrchestrator
 
 ORCHESTRATOR_MAP = {
     "react": ReactOrchestrator,
     "planner_react": PlannerReactOrchestrator,
     "decomposing": DecomposingPlannerOrchestrator,
+    "golden": GoldenOrchestrator,
+    "golden_guided": GoldenGuidedOrchestrator,
 }
 
 # Set up logging
@@ -205,6 +209,10 @@ async def execute_sample(
 
     orchestrator_class = ORCHESTRATOR_MAP[orchestrator]
     orchestrator_kwargs = {}
+    if orchestrator in ("golden", "golden_guided"):
+        # Golden replay (and its guided variant) needs the config path to locate
+        # the raw task file holding manual_tool_executions.
+        orchestrator_kwargs["config_path"] = config_file
     if planner_llm_config is not None:
         orchestrator_kwargs["planner_llm_config"] = random.choice(
             load_llm_configs(planner_llm_config)
@@ -264,7 +272,7 @@ async def main():
         "--orchestrator",
         type=str,
         default="react",
-        choices=["react", "planner_react", "decomposing"],
+        choices=["react", "planner_react", "decomposing", "golden", "golden_guided"],
         help="Orchestration strategy.",
     )
     parser.add_argument(
@@ -293,9 +301,9 @@ async def main():
                     f"(config={mode}, split={domain})"
                 )
                 hf_ds = hf_load_dataset(args.hf_dataset, mode, split=domain)
-                for row in hf_ds:
-                    task_id = row.get("task_id", f"task_{id(row)}")
-                    file_name = f"{mode}__{domain}__{task_id}.json"
+                for row_idx, row in enumerate(hf_ds):
+                    task_id = row.get("task_id", f"task_{row_idx}")
+                    file_name = f"{mode}__{domain}__{row_idx}__{task_id}.json"
                     task_dict = {}
                     for k, v in row.items():
                         if k in hf_only_fields:
