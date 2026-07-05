@@ -2,16 +2,24 @@
 
 Where :class:`GoldenOrchestrator` replays the recorded oracle trajectory
 verbatim (no LLM), this orchestrator keeps the golden **tool sequence** fixed
-but puts an LLM in the loop to adapt only the *runtime-reference* argument
-values (server-minted ids, handles, tokens, ...) so they match what the
-**current** run's prior live tool results actually returned.
+but puts an LLM in the loop to adapt the *runtime-reference* argument values
+(server-minted ids, handles, tokens, ...) so they match what the **current**
+run's prior live tool results actually returned.
 
 Motivation: recorded trajectories hardcode ids that were minted when the
 trajectory was recorded. On replay the seeded DB mints *different* ids, so every
 downstream step that references a recorded id fails. This orchestrator lets the
 model substitute the correct new id, observed live from the prior steps'
-results, while a substitution guard prevents it from touching any judgment /
-semantic value (enums, roles, summaries, colorId, ttl, reminder minutes, ...).
+results, while preserving judgment/semantic values (enums, roles, summaries,
+ttl, ...) via the per-step instruction.
+
+The model's adapted arguments are executed as-is: the golden args are provided
+purely as a template, and the model is trusted to decide which values are
+runtime references vs. judgment values. (An earlier mechanical "substitution
+guard" that reverted any changed value not found verbatim in prior live results
+was removed - it produced false reverts on legitimate edits, e.g. a new id
+embedded in an OData URL template, and the edge cases were not worth the
+complexity.)
 
 Contract vs :class:`GoldenOrchestrator`:
 - Same golden-file resolution (shared :class:`GoldenFileMixin`).
@@ -22,7 +30,7 @@ Contract vs :class:`GoldenOrchestrator`:
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 
@@ -53,7 +61,7 @@ class GoldenGuidedOrchestrator(GoldenFileMixin, AgentOrchestrator):
     def __init__(self, *args, config_path: str = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.config_path = config_path
-        # Per-step substitution telemetry: each accept/revert the guard makes.
+        # Per-step telemetry: every leaf the LLM changed from the golden args.
         self._substitutions: List[Dict[str, Any]] = []
 
     # ------------------------------------------------------------------ #
@@ -73,8 +81,8 @@ class GoldenGuidedOrchestrator(GoldenFileMixin, AgentOrchestrator):
         tools_used: List[str] = []
         tool_results: List[Dict[str, Any]] = []
 
-        # Accumulated parsed ``result`` objects from prior LIVE steps. The guard
-        # searches these to decide whether a changed value is a real reference.
+        # Accumulated parsed ``result`` objects from prior LIVE steps, passed to
+        # the LLM so it can substitute the correct new ids into later steps.
         live_results: List[Any] = []
 
         for idx, step in enumerate(manual_tool_executions):
@@ -92,21 +100,17 @@ class GoldenGuidedOrchestrator(GoldenFileMixin, AgentOrchestrator):
                 f"{tool_name} ---"
             )
 
-            # 1-3. Ask the LLM for adapted args, forcing THIS tool. Prior live
-            # results are passed as plain text (not a tool_use/tool_result
-            # chain) so the call is provider-agnostic and needs no matching
-            # assistant tool_use block.
+            # Ask the LLM for adapted args, forcing THIS tool. Prior live results
+            # are passed as plain text (not a tool_use/tool_result chain) so the
+            # call is provider-agnostic and needs no matching assistant tool_use
+            # block. The model's args are executed as-is (no guard).
             adapted_args = await self._adapt_args_for_step(
                 idx, tool_name, golden_args, live_results
             )
+            self._record_changes(idx, tool_name, golden_args, adapted_args)
 
-            # 4. Guard: revert any change not backed by prior live results.
-            guarded_args = self._guard_args(
-                idx, tool_name, golden_args, adapted_args, live_results
-            )
-
-            # 5. Execute live against the seeded DB.
-            exec_result = await self._execute_tool_call(tool_name, guarded_args)
+            # Execute live against the seeded DB.
+            exec_result = await self._execute_tool_call(tool_name, adapted_args)
             tool_result = exec_result["result"]
             target_gym = exec_result["gym_server"]
 
@@ -128,13 +132,13 @@ class GoldenGuidedOrchestrator(GoldenFileMixin, AgentOrchestrator):
             tool_results.append(
                 {
                     "tool_name": tool_name,
-                    "arguments": guarded_args,
+                    "arguments": adapted_args,
                     "result": tool_result,
                     "gym_server": target_gym,
                 }
             )
 
-            # 6. Feed the live result back so the next step's LLM sees new ids.
+            # Feed the live result back so the next step's LLM sees new ids.
             inner_result = tool_result.get("result", {})
             live_results.append(inner_result)
             messages.append(
@@ -161,7 +165,7 @@ class GoldenGuidedOrchestrator(GoldenFileMixin, AgentOrchestrator):
         }
 
     def get_result_metadata(self) -> Dict[str, Any]:
-        """Surface per-step substitution telemetry for auditing."""
+        """Surface per-step argument-change telemetry for auditing."""
         return {"golden_substitutions": self._substitutions}
 
     # ------------------------------------------------------------------ #
@@ -267,7 +271,9 @@ class GoldenGuidedOrchestrator(GoldenFileMixin, AgentOrchestrator):
             f"Rules:\n"
             f"1. Keep EVERY value exactly as in the template EXCEPT "
             f"runtime-reference values: server-generated identifiers, handles, "
-            f"tokens, resource ids, etc.\n"
+            f"tokens, resource ids, etc. This includes ids embedded inside a "
+            f"larger string such as an OData bind URL - replace only the id "
+            f"portion, keeping the surrounding template intact.\n"
             f"2. A recorded id in the template may be stale. If one of the prior "
             f"tool results shown above created or returned the resource this "
             f"step refers to, replace the stale id with the id observed in that "
@@ -281,161 +287,52 @@ class GoldenGuidedOrchestrator(GoldenFileMixin, AgentOrchestrator):
         )
 
     # ------------------------------------------------------------------ #
-    # Substitution guard
+    # Change telemetry (golden vs. adapted diff, for auditing only)
     # ------------------------------------------------------------------ #
-    def _guard_args(
+    def _record_changes(
         self,
         idx: int,
         tool_name: str,
         golden_args: Any,
         adapted_args: Any,
-        live_results: List[Any],
-    ) -> Any:
-        """Recursively reconcile adapted args against golden args.
+    ) -> None:
+        """Record every leaf the LLM changed from the golden template. This is
+        pure telemetry - it does not alter the args the model chose."""
+        self._diff_node(idx, tool_name, "", golden_args, adapted_args)
 
-        A changed leaf value is ACCEPTED only if its string form appears in the
-        accumulated prior live results; otherwise it is REVERTED to the golden
-        value. Structure (keys / list length) always follows golden to keep the
-        call shape faithful to the trajectory.
-        """
-        # Precompute searchable forms of the prior live results once per step.
-        live_values = set()
-        for r in live_results:
-            self._collect_scalar_strings(r, live_values)
-        live_blob = json.dumps(live_results, default=str)
-
-        return self._guard_node(
-            idx, tool_name, "", golden_args, adapted_args, live_values, live_blob
-        )
-
-    def _guard_node(
-        self,
-        idx: int,
-        tool_name: str,
-        path: str,
-        golden: Any,
-        adapted: Any,
-        live_values: set,
-        live_blob: str,
-    ) -> Any:
-        # Dict: follow golden keys; recurse where adapted supplies the same key.
-        if isinstance(golden, dict):
-            if not isinstance(adapted, dict):
-                return golden
-            out = {}
-            for key, gval in golden.items():
+    def _diff_node(
+        self, idx: int, tool_name: str, path: str, golden: Any, adapted: Any
+    ) -> None:
+        if isinstance(golden, dict) and isinstance(adapted, dict):
+            for key in set(golden) | set(adapted):
                 child_path = f"{path}.{key}" if path else key
-                if key in adapted:
-                    out[key] = self._guard_node(
-                        idx, tool_name, child_path, gval, adapted[key],
-                        live_values, live_blob,
-                    )
-                else:
-                    out[key] = gval
-            return out
-
-        # List: follow golden length; recurse element-wise where possible.
-        if isinstance(golden, list):
-            if not isinstance(adapted, list):
-                return golden
-            out = []
-            for i, gval in enumerate(golden):
-                child_path = f"{path}[{i}]"
-                if i < len(adapted):
-                    out.append(self._guard_node(
-                        idx, tool_name, child_path, gval, adapted[i],
-                        live_values, live_blob,
-                    ))
-                else:
-                    out.append(gval)
-            return out
-
-        # Leaf: accept a change only if it is backed by prior live results.
-        if adapted == golden:
-            return golden
-
-        if self._value_in_live(adapted, live_values, live_blob):
-            self._record_substitution(
-                idx, tool_name, path, golden, adapted, "accepted"
+                self._diff_node(
+                    idx, tool_name, child_path,
+                    golden.get(key, _MISSING), adapted.get(key, _MISSING),
+                )
+            return
+        if isinstance(golden, list) and isinstance(adapted, list):
+            for i in range(max(len(golden), len(adapted))):
+                g = golden[i] if i < len(golden) else _MISSING
+                a = adapted[i] if i < len(adapted) else _MISSING
+                self._diff_node(idx, tool_name, f"{path}[{i}]", g, a)
+            return
+        if golden != adapted:
+            golden_repr = "<absent>" if golden is _MISSING else golden
+            adapted_repr = "<absent>" if adapted is _MISSING else adapted
+            self._substitutions.append(
+                {
+                    "step": idx + 1,
+                    "tool": tool_name,
+                    "field": path,
+                    "golden_value": golden_repr,
+                    "new_value": adapted_repr,
+                }
             )
             logger.info(
-                f"[GUIDED][GUARD] ACCEPT step {idx + 1} {tool_name} "
-                f"field='{path}': {golden!r} -> {adapted!r} (found in live results)"
+                f"[GUIDED][DIFF] step {idx + 1} {tool_name} field='{path}': "
+                f"{golden_repr!r} -> {adapted_repr!r}"
             )
-            return adapted
-
-        self._record_substitution(
-            idx, tool_name, path, golden, adapted, "reverted"
-        )
-        logger.info(
-            f"[GUIDED][GUARD] REVERT step {idx + 1} {tool_name} "
-            f"field='{path}': model proposed {adapted!r}, not in live results; "
-            f"reverting to golden {golden!r}"
-        )
-        return golden
-
-    def _value_in_live(
-        self, value: Any, live_values: set, live_blob: str
-    ) -> bool:
-        """True if ``value`` appears in prior live results (structured match
-        preferred, substring fallback for embedded ids)."""
-        if value is None:
-            return False
-        # Structured: exact scalar match anywhere in the parsed prior results.
-        if value in live_values:
-            return True
-        s = value if isinstance(value, str) else json.dumps(value, default=str)
-        if not s:
-            return False
-        # Substring fallback: catches ids embedded inside larger result strings.
-        if isinstance(value, str) and s in live_blob:
-            return True
-        return False
-
-    def _collect_scalar_strings(self, obj: Any, out: set) -> None:
-        """Recursively collect scalar leaf values (as-is) from a parsed result.
-
-        MCP tool results are frequently ``{content: [{type: text, text: "..."}]}``
-        where ``text`` is itself a JSON string; parse those so nested ids become
-        first-class searchable values."""
-        if isinstance(obj, dict):
-            for v in obj.values():
-                self._collect_scalar_strings(v, out)
-        elif isinstance(obj, list):
-            for v in obj:
-                self._collect_scalar_strings(v, out)
-        elif isinstance(obj, str):
-            out.add(obj)
-            # Attempt to parse embedded JSON (e.g. content[].text payloads).
-            stripped = obj.strip()
-            if stripped and stripped[0] in "{[":
-                try:
-                    parsed = json.loads(stripped)
-                except (ValueError, TypeError):
-                    return
-                self._collect_scalar_strings(parsed, out)
-        elif isinstance(obj, (int, float, bool)):
-            out.add(obj)
-
-    def _record_substitution(
-        self,
-        idx: int,
-        tool_name: str,
-        path: str,
-        golden_value: Any,
-        new_value: Any,
-        source: str,
-    ) -> None:
-        self._substitutions.append(
-            {
-                "step": idx + 1,
-                "tool": tool_name,
-                "field": path,
-                "golden_value": golden_value,
-                "new_value": new_value,
-                "source": source,
-            }
-        )
 
     # ------------------------------------------------------------------ #
     # Content-level error detection (result.success can be misleading)
@@ -462,3 +359,7 @@ class GoldenGuidedOrchestrator(GoldenFileMixin, AgentOrchestrator):
         elif isinstance(obj, list):
             for v in obj:
                 self._collect_text(v, out)
+
+
+# Sentinel for "key/index absent on one side" in the golden-vs-adapted diff.
+_MISSING = object()
