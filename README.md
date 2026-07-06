@@ -78,6 +78,7 @@ cd EnterpriseOps-Gym
 # Install with only the provider(s) you need
 uv sync --extra anthropic    # Claude / AWS Bedrock
 uv sync --extra openai       # OpenAI / Azure OpenAI
+uv sync --extra together     # Together AI OpenAI-compatible chat completions
 uv sync --extra google       # Gemini / Vertex AI
 uv sync --extra deepseek     # DeepSeek
 uv sync --extra all          # Everything
@@ -146,7 +147,7 @@ LLM configs live in `conf/llm/<name>.json`. Use an array for load-balanced pools
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `llm_provider` | ✅ | `anthropic`, `aws_bedrock`, `openai`, `azureopenai`, `googlevertexai`, `google`, `vllm`, `openrouter`, `deepseek`, `qwq` |
+| `llm_provider` | ✅ | `anthropic`, `aws_bedrock`, `openai`, `azureopenai`, `googlevertexai`, `google`, `vllm`, `openrouter`, `together`, `deepseek`, `qwq` |
 | `llm_model` | ✅ | Model identifier |
 | `llm_api_key` | ✅ | API key |
 | `llm_api_endpoint` | — | Required for Azure OpenAI / vLLM |
@@ -243,6 +244,38 @@ python evaluate.py \
 | `decomposing` | Decomposes task into sub-goals before executing |
 
 For `planner_react` / `decomposing`, add `--planner_llm_config conf/llm/<planner>.json`.
+
+### GPT-OSS via OpenAI-Compatible Endpoints
+
+`gpt-oss` models are open-weight models and are not served through the OpenAI API. Run them through an OpenAI-compatible server such as vLLM, then point the benchmark at that base URL:
+
+```bash
+export GPT_OSS_API_BASE=http://localhost:8000/v1
+
+python evaluate.py \
+    --hf_dataset ServiceNow-AI/EnterpriseOps-Gym \
+    --domain csm --mode oracle \
+    --llm_config conf/llm/gpt-oss-120b-vllm.json \
+    --output_folder results/react/gpt-oss-120b-vllm/csm/oracle \
+    --orchestrator react \
+    --concurrency 1 --num_runs 1
+```
+
+Example configs for `openai/gpt-oss-120b` and `openai/gpt-oss-20b` are in `conf.example/llm/`. The checked-in examples use `${GPT_OSS_API_BASE}`, which is expanded at runtime.
+
+For Together AI, use the `together` provider and set `TOGETHER_API_KEY`:
+
+```bash
+export TOGETHER_API_KEY=<your-api-key>
+
+python evaluate.py \
+    --hf_dataset ServiceNow-AI/EnterpriseOps-Gym \
+    --domain csm --mode oracle \
+    --llm_config conf/llm/gpt-oss-120b-together.json \
+    --output_folder results/react/gpt-oss-120b-together/csm/oracle \
+    --orchestrator react \
+    --concurrency 1 --num_runs 1
+```
 
 ---
 

@@ -1,0 +1,13 @@
+{
+    "llms": ["gpt-oss-120b-vllm"],
+    "domains": ["csm"],
+    "modes": ["oracle"],
+    "orchestrator": "react",
+    "num_runs": 1,
+    "num_llm_instances": 1,
+    "path_templates": {
+        "log_dir": "logs/{orchestrator}/{llm}/{domain}/{mode}",
+        "output_folder": "results/{orchestrator}/{llm}/{domain}/{mode}",
+        "llm_config": "conf/llm/{llm}.json"
+    }
+}

@@ -70,6 +70,7 @@ class LLMClient:
                     openai_api_key=self.api_key,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
+                    reasoning_effort=self.effort,
                 )
             elif self.provider == "google":
                 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -109,29 +110,29 @@ class LLMClient:
                     max_completion_tokens=self.max_tokens,
                     model_kwargs=model_kwargs # In GPT-5.X this is a first class parameter, but passing this way is also allowed.
                 )
-            elif self.provider == "vllm" or self.provider == "openrouter":
+            elif self.provider in {"vllm", "openrouter", "together"}:
                 from langchain_openai import ChatOpenAI
 
-                model_kwargs = {}
-                if self.top_p is not None:
-                    model_kwargs["top_p"] = self.top_p
-                if self.effort is not None:
-                    model_kwargs["reasoning_effort"] = self.effort
-                if "extra_body" not in model_kwargs:
-                        model_kwargs["extra_body"] = {}
+                extra_body = {}
                 if self.reasoning:
-                    model_kwargs["extra_body"]["reasoning"] = self.reasoning
+                    extra_body["reasoning"] = self.reasoning
                 if self.custom_api_version:
-                    model_kwargs["extra_body"]["api_version"] = self.custom_api_version
+                    extra_body["api_version"] = self.custom_api_version
 
-                # vLLM exposes an OpenAI-compatible API
+                api_base = self.custom_api_endpoint
+                if self.provider == "together" and not api_base:
+                    api_base = "https://api.together.xyz/v1"
+
+                # vLLM, OpenRouter, and Together expose OpenAI-compatible APIs.
                 self.llm = ChatOpenAI(
                     model=self.model,
                     openai_api_key=self.api_key or "not-needed",
-                    openai_api_base=self.custom_api_endpoint,
+                    openai_api_base=api_base,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    model_kwargs=model_kwargs,
+                    top_p=self.top_p,
+                    reasoning_effort=self.effort,
+                    extra_body=extra_body or None,
                 )
             elif self.provider == "qwq":
                 from langchain_qwq import ChatQwQ

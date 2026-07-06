@@ -1,0 +1,11 @@
+{
+    "llm_provider": "vllm",
+    "llm_model": "openai/gpt-oss-120b",
+    "llm_api_key": "EMPTY",
+    "llm_api_endpoint": "${GPT_OSS_API_BASE}",
+    "temperature": 0.0,
+    "max_tokens": 16384,
+    "reasoning": {
+        "effort": "high"
+    }
+}

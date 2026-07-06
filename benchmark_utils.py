@@ -8,11 +8,36 @@ evaluate_MAS_orchestrated.py.
 import json
 import logging
 import os
+import re
 from typing import List
 
 from benchmark.models import BenchmarkConfig, LLMConfig
 
 logger = logging.getLogger(__name__)
+ENV_VAR_PATTERN = re.compile(
+    r"\$(?:{([A-Za-z_][A-Za-z0-9_]*)}|([A-Za-z_][A-Za-z0-9_]*))"
+)
+
+
+def _expand_env_refs(value):
+    """Expand environment-variable references in config values."""
+    if isinstance(value, dict):
+        return {k: _expand_env_refs(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_expand_env_refs(v) for v in value]
+    if isinstance(value, str):
+        missing = [
+            match.group(1) or match.group(2)
+            for match in ENV_VAR_PATTERN.finditer(value)
+            if (match.group(1) or match.group(2)) not in os.environ
+        ]
+        if missing:
+            raise ValueError(
+                "Missing environment variable(s) referenced by LLM config: "
+                + ", ".join(sorted(set(missing)))
+            )
+        return os.path.expandvars(value)
+    return value
 
 
 def load_config(config_path: str) -> BenchmarkConfig:
@@ -34,6 +59,7 @@ def load_llm_configs(llm_config_path: str) -> List[LLMConfig]:
     try:
         with open(llm_config_path, "r") as f:
             config_data = json.load(f)
+        config_data = _expand_env_refs(config_data)
 
         # Support both single config and list of configs
         if isinstance(config_data, list):

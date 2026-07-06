@@ -187,6 +187,7 @@ class MCPClient:
             # Add context headers (dynamic - convert all context key-value pairs to x-* headers)
             if self.context and isinstance(self.context, dict):
                 for key, value in self.context.items():
+                    key = key.strip()
                     # Convert context keys to header format: user_id -> x-user-id
                     if not key.lower().startswith("x-"):
                         header_key = f"x-{key.lower().replace('_', '-')}"
@@ -321,6 +322,7 @@ class MCPClient:
         # Add any additional context headers (these override instance context)
         if context and isinstance(context, dict):
             for key, value in context.items():
+                key = key.strip()
                 if not key.lower().startswith("x-"):
                     header_key = f"x-{key.lower().replace('_', '-')}"
                 else:

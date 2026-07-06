@@ -1,0 +1,8 @@
+{
+    "llm_provider": "openai",
+    "llm_model": "gpt-5.2",
+    "llm_api_key": "${OPENAI_API_KEY}",
+    "temperature": 0.0,
+    "max_tokens": 16384,
+    "effort": "high"
+}

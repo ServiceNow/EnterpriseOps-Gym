@@ -226,6 +226,7 @@ class VerifierEngine:
             # Add context headers
             if mcp_client.context:
                 for key, value in mcp_client.context.items():
+                    key = key.strip()
                     if not key.lower().startswith("x-"):
                         header_key = f"x-{key.lower().replace('_', '-')}"
                     else:
@@ -235,6 +236,7 @@ class VerifierEngine:
             # Add any override context
             if context:
                 for key, value in context.items():
+                    key = key.strip()
                     if not key.lower().startswith("x-"):
                         header_key = f"x-{key.lower().replace('_', '-')}"
                     else:

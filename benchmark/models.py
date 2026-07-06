@@ -84,7 +84,7 @@ class BenchmarkConfig:
 
 @dataclass
 class LLMConfig:
-    llm_provider: str  # "anthropic", "openai", "google", "azureopenai"
+    llm_provider: str  # "anthropic", "openai", "google", "azureopenai", etc.
     llm_model: str
     llm_api_key: str
     llm_api_endpoint: Optional[str] = ""

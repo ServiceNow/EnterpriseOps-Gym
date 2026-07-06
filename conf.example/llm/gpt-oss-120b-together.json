@@ -1,0 +1,10 @@
+{
+    "llm_provider": "together",
+    "llm_model": "openai/gpt-oss-120b",
+    "llm_api_key": "${TOGETHER_API_KEY}",
+    "temperature": 0.0,
+    "max_tokens": 16384,
+    "reasoning": {
+        "effort": "high"
+    }
+}
