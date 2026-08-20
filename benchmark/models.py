@@ -95,3 +95,5 @@ class LLMConfig:
     top_p: Optional[float] = None
     effort: Optional[str] = None
     reasoning: Optional[dict] = None
+    # Underlying model id when llm_model is an inference-profile ARN (aws_bedrock).
+    base_model_id: Optional[str] = None

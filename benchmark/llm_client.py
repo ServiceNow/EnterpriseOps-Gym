@@ -4,6 +4,20 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
+def get_text_content(content) -> str:
+    """Extract plain text from LLM response content.
+
+    Handles both plain strings and lists returned by models with thinking/reasoning
+    blocks (e.g. Claude extended thinking on Bedrock returns a list of content blocks).
+    """
+    if isinstance(content, list):
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                return block.get("text", "")
+        return ""
+    return content or ""
+
+
 class LLMClient:
     """
     Unified LLM client supporting multiple providers.
@@ -23,6 +37,7 @@ class LLMClient:
         top_p: Optional[float] = None,
         effort: Optional[str] = None,
         reasoning: Optional[dict] = None,
+        base_model_id: Optional[str] = None,
     ):
         self.provider = provider.lower()
         self.model = model
@@ -35,6 +50,7 @@ class LLMClient:
         self.top_p = top_p
         self.effort = effort
         self.reasoning = reasoning
+        self.base_model_id = base_model_id
         self.llm = None
 
         self._initialize_llm()
@@ -52,25 +68,51 @@ class LLMClient:
                     max_tokens=self.max_tokens,
                 )
             elif self.provider == "aws_bedrock":
-                from langchain_aws import ChatBedrock
+                from langchain_aws import ChatBedrockConverse
 
-                self.llm = ChatBedrock(
-                    model_id=self.model,
-                    region_name=self.region or "us-west-2",
-                    model_kwargs={
-                        "temperature": self.temperature,
-                        "max_tokens": self.max_tokens,
-                    },
-                )
+                # Only the Converse API forwards extended-thinking config through
+                # additional_model_request_fields; the legacy InvokeModel path drops it.
+                extra_fields = {}
+                if self.reasoning:
+                    extra_fields["thinking"] = self.reasoning
+                if self.effort:
+                    extra_fields["output_config"] = {"effort": self.effort}
+
+                bedrock_kwargs = {
+                    "model": self.model,
+                    # Required when `model` is an ARN rather than a bare model id.
+                    "provider": "anthropic",
+                    "region_name": self.region or "us-west-2",
+                    "max_tokens": self.max_tokens,
+                    "additional_model_request_fields": extra_fields or None,
+                }
+                # `model` may be an inference-profile ARN, which carries no model
+                # family in it. Without base_model_id the profile cannot resolve,
+                # so capability detection falls back to defaults.
+                if self.base_model_id:
+                    bedrock_kwargs["base_model_id"] = self.base_model_id
+                # Anthropic rejects temperature != 1 while thinking is enabled.
+                if not self.reasoning:
+                    bedrock_kwargs["temperature"] = self.temperature
+
+                self.llm = ChatBedrockConverse(**bedrock_kwargs)
             elif self.provider == "openai":
                 from langchain_openai import ChatOpenAI
 
-                self.llm = ChatOpenAI(
-                    model=self.model,
-                    openai_api_key=self.api_key,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                )
+                kwargs = {
+                    "model": self.model,
+                    "openai_api_key": self.api_key,
+                    "max_tokens": self.max_tokens,
+                }
+                if self.effort is not None:
+                    # Function tools + reasoning_effort are only supported on
+                    # /v1/responses, not /v1/chat/completions.
+                    kwargs["reasoning_effort"] = self.effort
+                    kwargs["use_responses_api"] = True
+                else:
+                    kwargs["temperature"] = self.temperature
+
+                self.llm = ChatOpenAI(**kwargs)
             elif self.provider == "google":
                 from langchain_google_genai import ChatGoogleGenerativeAI
 

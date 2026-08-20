@@ -119,6 +119,7 @@ class BenchmarkExecutor:
             top_p=self.llm_config.top_p,
             effort=self.llm_config.effort,
             reasoning=self.llm_config.reasoning,
+            base_model_id=self.llm_config.base_model_id,
         )
 
         # Initialize verifier engine (multi-gym aware)

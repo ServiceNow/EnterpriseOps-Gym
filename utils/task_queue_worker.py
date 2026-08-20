@@ -1,9 +1,5 @@
 from tqdm import tqdm
 import asyncio
-import aiohttp
-import nest_asyncio
-
-nest_asyncio.apply()
 
 
 class TaskQueueWorker:
