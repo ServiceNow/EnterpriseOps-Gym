@@ -242,6 +242,12 @@ class LLMClient:
                     "parameters": cleaned_schema,
                 },
             }
+            # OpenAI's Responses API defaults function tools to strict mode, which
+            # forces the model to supply a value for every property (including
+            # optional ones) instead of omitting them. Explicit strict=False
+            # restores normal optional-parameter handling.
+            if self.provider in ("openai", "azureopenai") and self.effort is not None:
+                tool_def["function"]["strict"] = False
             langchain_tools.append(tool_def)
 
         return langchain_tools
