@@ -1,0 +1,39 @@
+[
+ {
+  "tool_name": "update_language_settings",
+  "arguments": {
+   "userId": "me",
+   "displayLanguage": "fr"
+  }
+ },
+ {
+  "tool_name": "update_vacation_settings",
+  "arguments": {
+   "userId": "me",
+   "enableAutoReply": true,
+   "responseSubject": "En vacances",
+   "responseBodyPlainText": "Je suis absent.",
+   "responseBodyHtml": "<p>Je suis absent.</p>",
+   "restrictToContacts": false,
+   "restrictToDomain": false,
+   "startTime": "1764151200000",
+   "endTime": "1766743200000"
+  }
+ },
+ {
+  "tool_name": "create_forwarding_address",
+  "arguments": {
+   "userId": "me",
+   "forwardingEmail": "travel-log@gmail.com"
+  }
+ },
+ {
+  "tool_name": "update_auto_forwarding",
+  "arguments": {
+   "userId": "me",
+   "enabled": true,
+   "emailAddress": "travel-log@gmail.com",
+   "disposition": "leaveInInbox"
+  }
+ }
+]

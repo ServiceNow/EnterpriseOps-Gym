@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>DataSea — Task Workspace</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<header><strong>DataSea</strong> task workspace <span id="who" class="muted"></span></header>
+
+<section id="login" class="card narrow">
+  <h2>Sign in</h2>
+  <p class="muted">Enter the worker ID you were given.</p>
+  <input id="worker-id" type="text" placeholder="e.g. worker_alice" />
+  <button id="login-btn">Continue</button>
+</section>
+
+<section id="picker" class="card narrow hidden">
+  <h2>Choose a task</h2>
+  <div id="task-list"></div>
+</section>
+
+<main id="workspace" class="hidden">
+  <aside id="left">
+    <div class="card">
+      <h3>Your task</h3>
+      <div id="instruction" class="instruction"></div>
+      <details><summary>Assistant policy (rules to follow)</summary><div id="policy" class="policy"></div></details>
+    </div>
+    <div class="card">
+      <h3>Actions</h3>
+      <input id="tool-filter" type="search" placeholder="Search actions…" />
+      <ul id="tool-list" class="tool-list"></ul>
+    </div>
+  </aside>
+
+  <section id="center">
+    <div class="card" id="tool-panel">
+      <div class="muted">Pick an action on the left to fill it in.</div>
+    </div>
+    <div class="card" id="output-panel" hidden>
+      <h3>Result</h3>
+      <pre id="output"></pre>
+    </div>
+  </section>
+
+  <aside id="right">
+    <div class="card">
+      <h3>History <span class="muted" id="step-count"></span></h3>
+      <ol id="history" class="history"></ol>
+    </div>
+    <div class="card">
+      <h3>Finish</h3>
+      <label>Reply to the requester (optional)</label>
+      <textarea id="final-response" rows="3" placeholder="Briefly tell the requester what you did, or answer their question if they asked one."></textarea>
+      <label>Note for the DataSea team (optional, not part of the task)</label>
+      <textarea id="worker-note" rows="2"></textarea>
+      <div class="row">
+        <button id="submit-btn" class="primary">Submit task</button>
+        <button id="unclear-btn" class="danger">Task unclear / broken</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<section id="done" class="card narrow hidden">
+  <h2>Thanks — your work was recorded.</h2>
+  <button id="next-btn">Pick another task</button>
+</section>
+
+<script src="/static/schema_form.js"></script>
+<script>
+const { h, humanize, buildForm } = { ...SchemaForm, buildForm: SchemaForm.buildForm };
+const $ = (id) => document.getElementById(id);
+const show = (id) => ["login", "picker", "workspace", "done"].forEach((x) => $(x).classList.toggle("hidden", x !== id));
+let state = { worker: localStorage.getItem("datasea_worker") || "", session: null, tools: [], busy: false };
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail || r.statusText);
+  return body;
+}
+
+function pretty(text) {
+  if (text == null) return "";
+  try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
+}
+
+async function loadTasks() {
+  $("who").textContent = `— ${state.worker}`;
+  const tasks = await api("/api/tasks");
+  $("task-list").replaceChildren(...tasks.map((t) =>
+    h("div", { class: "task-item" },
+      h("div", {}, h("span", { class: "tag" }, t.domain), " ", t.preview, "…"),
+      h("button", { onclick: () => startTask(t.task_id) }, "Start"))));
+  show("picker");
+}
+
+async function startTask(taskId) {
+  $("task-list").prepend(h("div", { class: "muted" }, "Preparing a fresh environment… (this can take a few seconds)"));
+  try {
+    const s = await api("/api/sessions", { method: "POST", body: JSON.stringify({ worker_id: state.worker, task_id: taskId }) });
+    state.session = s.session_id; state.tools = s.tools;
+    $("instruction").textContent = s.task.instruction;
+    $("policy").textContent = s.task.policy;
+    $("history").replaceChildren(); $("step-count").textContent = "";
+    $("final-response").value = ""; $("worker-note").value = "";
+    $("output-panel").hidden = true;
+    $("tool-panel").replaceChildren(h("div", { class: "muted" }, "Pick an action on the left to fill it in."));
+    renderToolList();
+    show("workspace");
+  } catch (e) { alert("Could not start task: " + e.message); loadTasks(); }
+}
+
+function renderToolList() {
+  const q = $("tool-filter").value.toLowerCase();
+  $("tool-list").replaceChildren(...state.tools
+    .filter((t) => !q || t.name.toLowerCase().includes(q) || (t.description || "").toLowerCase().includes(q))
+    .map((t) => h("li", { onclick: () => openTool(t) }, h("strong", {}, humanize(t.name)),
+      h("div", { class: "muted small-text" }, (t.description || "").split("\n")[0].slice(0, 120)))));
+}
+
+function openTool(tool) {
+  const form = buildForm(tool.inputSchema);
+  const err = h("div", { class: "error" });
+  const run = h("button", { class: "primary", type: "submit" }, "Run action");
+  const f = h("form", { onsubmit: async (ev) => {
+    ev.preventDefault(); err.textContent = "";
+    let args;
+    try { args = form.getValue(); } catch (e) { err.textContent = e.message; return; }
+    if (state.busy) return;
+    state.busy = true; run.disabled = true; run.textContent = "Running…";
+    try {
+      const r = await api(`/api/sessions/${state.session}/call`, { method: "POST", body: JSON.stringify({ tool_name: tool.name, arguments: args }) });
+      showResult(r); addHistory(r);
+    } catch (e) { err.textContent = e.message; }
+    finally { state.busy = false; run.disabled = false; run.textContent = "Run action"; }
+  } }, form.el, err, run);
+  $("tool-panel").replaceChildren(h("h3", {}, humanize(tool.name)),
+    h("div", { class: "tool-desc" }, tool.description || ""), f);
+}
+
+function showResult(r) {
+  $("output-panel").hidden = false;
+  const text = r.error ? `⚠ ${r.error}` : pretty(r.display ?? JSON.stringify(r.result));
+  $("output").textContent = text;
+  $("output").classList.toggle("err", !!r.error);
+}
+
+function addHistory(r) {
+  const args = Object.entries(r.arguments).map(([k, v]) => `${humanize(k)}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join("; ");
+  const li = h("li", { class: r.error ? "err" : "" },
+    h("strong", {}, humanize(r.tool_name)), r.error ? " (error)" : "",
+    h("div", { class: "muted small-text" }, args || "no inputs"));
+  li.addEventListener("click", () => showResult(r));
+  $("history").append(li);
+  $("step-count").textContent = `(${$("history").children.length})`;
+}
+
+async function finish(outcome) {
+  if (outcome === "unclear" && !$("worker-note").value.trim()) {
+    alert("Please add a short note explaining what is unclear or broken."); return;
+  }
+  if (!confirm(outcome === "submit" ? "Submit this task as complete?" : "Report this task as unclear/broken?")) return;
+  try {
+    await api(`/api/sessions/${state.session}/finish`, { method: "POST", body: JSON.stringify({
+      outcome, final_response: $("final-response").value, worker_note: $("worker-note").value }) });
+    state.session = null; show("done");
+  } catch (e) { alert("Could not finish: " + e.message); }
+}
+
+$("login-btn").onclick = () => { const v = $("worker-id").value.trim(); if (!v) return; state.worker = v; localStorage.setItem("datasea_worker", v); loadTasks(); };
+$("tool-filter").oninput = renderToolList;
+$("submit-btn").onclick = () => finish("submit");
+$("unclear-btn").onclick = () => finish("unclear");
+$("next-btn").onclick = loadTasks;
+window.addEventListener("beforeunload", (e) => { if (state.session) { e.preventDefault(); e.returnValue = ""; } });
+if (state.worker) { $("worker-id").value = state.worker; }
+show("login");
+</script>
+</body>
+</html>

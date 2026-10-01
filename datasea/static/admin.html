@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>DataSea — Admin</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<header><strong>DataSea</strong> admin <span class="muted">(pilot, localhost only)</span>
+  <button id="refresh" class="small">Refresh</button>
+  <button id="export" class="small">Export JSONL (incl. pilot)</button>
+  <span id="export-msg" class="muted"></span>
+</header>
+<main class="admin">
+  <div class="card">
+    <h3>Workers</h3>
+    <table id="workers"><thead><tr><th>Worker</th><th>Sessions</th><th>Passed</th><th>Failed</th><th>Flagged</th><th>Other</th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="card">
+    <h3>Sessions</h3>
+    <table id="sessions"><thead><tr><th>Started</th><th>Worker</th><th>Task</th><th>Domain</th><th>Pilot</th><th>Status</th><th>Verifier</th><th>Duration (s)</th><th>Tool calls</th><th>Reset</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="card" id="detail" hidden>
+    <h3>Session detail <span id="detail-id" class="muted"></span></h3>
+    <div id="detail-body"></div>
+  </div>
+</main>
+<script src="/static/schema_form.js"></script>
+<script>
+const { h } = SchemaForm;
+const $ = (id) => document.getElementById(id);
+const api = async (p, o) => { const r = await fetch(p, o); if (!r.ok) throw new Error(await r.text()); return r.json(); };
+const pre = (v) => h("pre", {}, typeof v === "string" ? v : JSON.stringify(v, null, 2));
+
+async function load() {
+  const rows = await api("/api/admin/sessions");
+  const byWorker = {};
+  for (const r of rows) {
+    const w = (byWorker[r.worker_id] ||= { n: 0, passed: 0, failed: 0, flagged_unclear: 0, other: 0 });
+    w.n++; if (r.status in w) w[r.status]++; else w.other++;
+  }
+  $("workers").tBodies[0].replaceChildren(...Object.entries(byWorker).map(([k, w]) =>
+    h("tr", {}, h("td", {}, k), h("td", {}, w.n), h("td", {}, w.passed), h("td", {}, w.failed), h("td", {}, w.flagged_unclear), h("td", {}, w.other))));
+  $("sessions").tBodies[0].replaceChildren(...rows.map((r) =>
+    h("tr", { class: `st-${r.status}` },
+      h("td", {}, r.started_at.replace("T", " ").slice(0, 19)), h("td", {}, r.worker_id),
+      h("td", { class: "mono" }, r.task_id), h("td", {}, r.domain), h("td", {}, r.pilot_only ? "yes" : "no"),
+      h("td", {}, r.status + (r.live ? " (live)" : "")),
+      h("td", {}, r.verifier_pass == null ? "—" : r.verifier_pass ? "PASS" : "FAIL"),
+      h("td", {}, r.duration_seconds ?? "—"), h("td", {}, r.num_tool_calls), h("td", {}, r.reset_at ? "yes" : "no"),
+      h("td", {}, h("button", { class: "small", onclick: () => detail(r.session_id) }, "View"),
+        r.live ? h("button", { class: "small danger", onclick: async () => { if (confirm("Abandon and reset this live session?")) { await api(`/api/admin/sessions/${r.session_id}/reset`, { method: "POST" }); load(); } } }, "Reset") : null))));
+}
+
+async function detail(id) {
+  const { session: s, steps } = await api(`/api/admin/sessions/${id}`);
+  $("detail").hidden = false; $("detail-id").textContent = id;
+  const v = s.verifier || {};
+  const verRows = Object.entries(v.verification_results || {}).map(([name, r]) =>
+    h("tr", { class: r.passed ? "st-passed" : "st-failed" }, h("td", {}, r.passed ? "PASS" : "FAIL"), h("td", {}, name),
+      h("td", { class: "mono" }, JSON.stringify(r.expected)), h("td", { class: "mono" }, JSON.stringify(r.actual)), h("td", {}, pre(r.query || r.error || ""))));
+  $("detail-body").replaceChildren(
+    h("p", {}, h("strong", {}, "Task: "), s.user_prompt),
+    h("p", {}, h("strong", {}, "Status: "), s.status, " — ", h("strong", {}, "Worker note: "), s.worker_note || "—"),
+    h("p", {}, h("strong", {}, "Final reply: "), s.final_response || "—"),
+    h("h4", {}, "Verifier output"),
+    v.error ? pre(v.error) : h("table", {}, h("thead", {}, h("tr", {}, ["", "Verifier", "Expected", "Actual", "Query"].map((x) => h("th", {}, x)))), h("tbody", {}, verRows)),
+    h("h4", {}, `Trajectory (${steps.length} tool calls)`),
+    ...steps.map((st) => h("details", { class: st.error ? "err" : "" },
+      h("summary", {}, `#${st.step} ${st.timestamp.slice(11, 19)} ${st.tool_name}${st.error ? " — ERROR" : ""} (${st.duration_ms} ms)`),
+      h("div", {}, h("strong", {}, "Arguments"), pre(st.arguments), h("strong", {}, "Result"), pre(st.result), st.error ? h("div", { class: "error" }, st.error) : null))),
+    h("h4", {}, "Environment & provenance"), pre({ environment: s.environment, provenance: s.provenance }),
+    h("details", {}, h("summary", {}, "Raw session JSON"), pre(s)));
+  $("detail").scrollIntoView({ behavior: "smooth" });
+}
+
+$("refresh").onclick = load;
+$("export").onclick = async () => { const r = await api("/api/admin/export?include_pilot=true", { method: "POST" }); $("export-msg").textContent = `${JSON.stringify(r.counts)} → ${r.out_dir}`; };
+load();
+</script>
+</body>
+</html>
