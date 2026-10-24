@@ -1,0 +1,3 @@
+train: results/opt/itsm/step01_v1_r2/run_1: 37/53 = 69.8%  (failed 16, missing 0)
+test: results/opt/itsm/step01_v1_r2/run_1: 84/128 = 65.6%  (failed 44, missing 0)
+all: results/opt/itsm/step01_v1_r2/run_1: 121/181 = 66.9%  (failed 60, missing 0)
