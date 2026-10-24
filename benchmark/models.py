@@ -64,6 +64,9 @@ class BenchmarkConfig:
     verifiers: List[Dict[str, Any]]
     number_of_runs: int
 
+    # Task identity, carried into the result envelope for trace provenance.
+    task_id: Optional[str] = None
+
     # Multi-gym configuration (preferred)
     gym_servers_config: Optional[List[Dict[str, Any]]] = None
 
@@ -90,6 +93,7 @@ class LLMConfig:
     llm_api_endpoint: Optional[str] = ""
     llm_api_version: Optional[str] = ""
     llm_region: Optional[str] = None
+    llm_aws_secret_key: Optional[str] = None  # aws_secret_access_key, for aws_bedrock
     temperature: float = 0.0
     max_tokens: int = 4096
     top_p: Optional[float] = None

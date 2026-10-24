@@ -11,3 +11,15 @@ __pycache__/
 # .env contains cloud credentials (AWS, GCP) — never commit
 .env
 uv.lock
+.local_configs/csm_delivery_batch_09-22/
+delivery_batch_09-22/delivery_batch _09-24/
+.local_configs/itsm_delivery_batch_09-24/
+delivery_batch_09-30/
+.local_configs/
+CSM_185tasks/
+delivery_batch_09-22/
+Drive_105/
+Email_104/
+Hybrid_156/
+sn-*.tar
+ITSM_Client_Feedback_RCA.html

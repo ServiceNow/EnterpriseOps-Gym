@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from benchmark.mcp_client import MCPClient
 from benchmark.llm_client import LLMClient
@@ -13,6 +13,11 @@ logger = logging.getLogger(__name__)
 
 class AgentOrchestrator(ABC):
 
+    # True only for orchestrators that accumulate their trace on self as they
+    # go. Where it is False, an empty partial trace means "not captured", not
+    # "the model did nothing" — consumers must be able to tell those apart.
+    supports_partial_trace = False
+
     def __init__(
         self,
         llm_client: "LLMClient",
@@ -21,13 +26,32 @@ class AgentOrchestrator(ABC):
         available_tools: List[Dict[str, Any]],
         config: "BenchmarkConfig",
         max_iterations: int = 50,
+        tool_name_mapping: Optional[Dict[str, str]] = None,
     ):
         self.llm_client = llm_client
         self.mcp_clients = mcp_clients
         self.tool_to_server_mapping = tool_to_server_mapping
+        # Exposed (prefixed) name -> the name the MCP server knows. Tools that
+        # are not prefixed are absent and keep their own name.
+        self.tool_name_mapping = tool_name_mapping or {}
         self.available_tools = available_tools
         self.config = config
         self.max_iterations = max_iterations
+        # Accumulated on self (not in locals) so a run that raises mid-loop
+        # still yields the trace collected up to the failure.
+        self.conversation_flow: List[Dict[str, Any]] = []
+        self.tools_used: List[str] = []
+        self.tool_results: List[Dict[str, Any]] = []
+
+    def get_partial_trace(self) -> Dict[str, Any]:
+        """Trace collected so far. Used to preserve evidence when a run fails
+        before execute() returns."""
+        return {
+            "conversation_flow": self.conversation_flow,
+            "tools_used": self.tools_used,
+            "tool_results": self.tool_results,
+            "partial_trace_captured": self.supports_partial_trace,
+        }
 
     @abstractmethod
     async def execute(self) -> Dict[str, Any]:
@@ -49,13 +73,26 @@ class AgentOrchestrator(ABC):
         target_gym = self.tool_to_server_mapping.get(tool_name)
 
         if not target_gym:
-            target_gym = list(self.mcp_clients.keys())[0]
-            logger.error(f"Tool '{tool_name}' not in mapping, using: {target_gym}")
-            raise
+            # A model can call a tool it was never given. Report it back as a
+            # failed call so the trace explains the absent mutation, instead of
+            # raising and discarding the run.
+            logger.error(
+                f"Tool '{tool_name}' is not in the tool-to-server mapping; "
+                f"reporting call as failed."
+            )
+            return {
+                "result": {
+                    "success": False,
+                    "error": f"Unknown tool '{tool_name}': not exposed to this task.",
+                },
+                "gym_server": None,
+            }
 
         client = self.mcp_clients[target_gym]
         logger.info(f"Executing '{tool_name}' on '{target_gym}'")
 
-        result = await client.call_tool(tool_name, tool_args)
+        result = await client.call_tool(
+            self.tool_name_mapping.get(tool_name, tool_name), tool_args
+        )
 
         return {"result": result, "gym_server": target_gym}

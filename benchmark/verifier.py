@@ -177,8 +177,12 @@ class VerifierEngine:
 
         logger.info(f"Expected tools: {selected_tools}, Called: {tools_called}")
 
-        # Check if expected tools were called
-        missing_tools = [tool for tool in selected_tools if tool not in tools_called]
+        # A prefixed call ("hr__get_user") satisfies both its own name and the
+        # bare server name ("get_user").
+        called_names = set(tools_called) | {
+            name.split("__", 1)[1] for name in tools_called if "__" in name
+        }
+        missing_tools = [tool for tool in selected_tools if tool not in called_names]
 
         # Check minimum tool calls
         passed = len(missing_tools) == 0 and len(tools_called) >= minimum_tool_calls

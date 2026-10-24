@@ -5,12 +5,24 @@ These functions are used identically by evaluate_MAS_simple.py and
 evaluate_MAS_orchestrated.py.
 """
 
+import dataclasses
 import json
 import logging
 import os
 from typing import List
 
 from benchmark.models import BenchmarkConfig, LLMConfig
+
+_LLM_CONFIG_FIELDS = {f.name for f in dataclasses.fields(LLMConfig)}
+_LLM_CONFIG_ALIASES = {"aws_region": "llm_region"}
+
+
+def _normalize_llm_config_dict(cfg: dict) -> dict:
+    normalized = dict(cfg)
+    for alias, canonical in _LLM_CONFIG_ALIASES.items():
+        if alias in normalized and canonical not in normalized:
+            normalized[canonical] = normalized[alias]
+    return {k: v for k, v in normalized.items() if k in _LLM_CONFIG_FIELDS}
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +48,12 @@ def load_llm_configs(llm_config_path: str) -> List[LLMConfig]:
             config_data = json.load(f)
 
         # Support both single config and list of configs
+        # Unknown keys (e.g. metadata like "expected_model") are ignored,
+        # and known aliases (e.g. "aws_region" -> "llm_region") are normalized.
         if isinstance(config_data, list):
-            return [LLMConfig(**cfg) for cfg in config_data]
+            return [LLMConfig(**_normalize_llm_config_dict(cfg)) for cfg in config_data]
         else:
-            return [LLMConfig(**config_data)]
+            return [LLMConfig(**_normalize_llm_config_dict(config_data))]
     except FileNotFoundError:
         logger.error(f"LLM configuration file not found: {llm_config_path}")
         raise

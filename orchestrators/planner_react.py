@@ -126,6 +126,8 @@ class PlannerReactOrchestrator(AgentOrchestrator):
         prompt_template:    Optional custom template for the planner prompt.
     """
 
+    supports_partial_trace = True
+
     def __init__(
         self,
         *args,
@@ -199,7 +201,9 @@ Please execute the task following the strategic plan above. Use the available to
             HumanMessage(content=enhanced_user_message),
         ]
 
-        conversation_flow = [
+        # Bound to self so a run that raises mid-loop still yields the trace
+        # collected up to the failure (see AgentOrchestrator.get_partial_trace).
+        self.conversation_flow = [
             {"type": "system_message", "content": self.config.system_prompt},
             {
                 "type": "user_message",
@@ -208,8 +212,9 @@ Please execute the task following the strategic plan above. Use the available to
                 "generated_plan": plan,
             },
         ]
-        tools_used = []
-        tool_results = []
+        conversation_flow = self.conversation_flow
+        tools_used = self.tools_used
+        tool_results = self.tool_results
 
         for iteration in range(self.max_iterations):
             logger.info(f"\n--- Iteration {iteration + 1}/{self.max_iterations} ---")

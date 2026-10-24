@@ -2,8 +2,10 @@
 BenchmarkExecutor: Orchestrates the complete benchmark execution flow.
 """
 
+import difflib
 import logging
 import os
+import traceback
 from datetime import datetime, timezone
 from typing import Dict, Any, List
 
@@ -19,6 +21,16 @@ logger = logging.getLogger(__name__)
 # BENCHMARK EXECUTOR
 # ============================================================================
 
+
+
+def _tool_matches(tool: Dict[str, Any], names) -> bool:
+    """Whether a selected/restricted name refers to this exposed tool.
+
+    A prefixed name ("hr__get_user") refers to one server's copy; a bare name
+    ("get_user") refers to every server's copy that has it.
+    """
+    names = names or []
+    return tool.get("name") in names or tool.get("_mcp_tool_name") in names
 
 class BenchmarkExecutor:
     """
@@ -53,8 +65,16 @@ class BenchmarkExecutor:
         self.verifier_engine = None
         self.available_tools = []  # Merged tools from all gyms
         self.tool_to_server_mapping = {}  # Maps tool_name -> gym_name
+        # Exposed name -> the server's own name, for prefixed tools only.
+        self.tool_name_mapping = {}
         self.gym_configs = []  # List of gym server configurations
         self.auto_created_databases = []  # Track auto-created databases for cleanup
+        # Audit trails for trace review (see docs on error-detection tooling).
+        self.discovered_tools_snapshot = []  # Full MCP catalog, pre-filtering
+        self.duplicate_tool_names = []  # Names skipped as cross-gym duplicates
+        self.tool_contract_audit = {}  # Discovered vs. exposed tool contract
+        self.context_header_audit = []  # Context key names + renames, no values
+        self.execution_context_audit = {}  # Non-secret acting identity per gym
 
     async def initialize(self):
         """Initialize all clients for multi-gym support"""
@@ -100,11 +120,16 @@ class BenchmarkExecutor:
             self.available_tools = [
                 tool
                 for tool in self.available_tools
-                if tool["name"] not in self.config.restricted_tools
+                if not _tool_matches(tool, self.config.restricted_tools)
             ]
             logger.info(
                 f"Applied tool restrictions: {original_count} -> {len(self.available_tools)} tools"
             )
+
+        # Built after filtering and restrictions so exposed_tools reflects the
+        # contract the model actually receives.
+        self._build_tool_contract_audit()
+        self._build_context_audits()
 
         # Initialize LLM client
         self.llm_client = LLMClient(
@@ -114,6 +139,7 @@ class BenchmarkExecutor:
             api_endpoint=self.llm_config.llm_api_endpoint,
             api_version=self.llm_config.llm_api_version,
             region=self.llm_config.llm_region,
+            aws_secret_key=self.llm_config.llm_aws_secret_key,
             temperature=self.llm_config.temperature,
             max_tokens=self.llm_config.max_tokens,
             top_p=self.llm_config.top_p,
@@ -145,6 +171,7 @@ class BenchmarkExecutor:
             api_endpoint=planner_llm_config.llm_api_endpoint,
             api_version=planner_llm_config.llm_api_version,
             region=planner_llm_config.llm_region,
+            aws_secret_key=planner_llm_config.llm_aws_secret_key,
             temperature=planner_llm_config.temperature,
             max_tokens=planner_llm_config.max_tokens,
             top_p=planner_llm_config.top_p,
@@ -186,6 +213,7 @@ class BenchmarkExecutor:
                     "mcp_endpoint": server_config.get("mcp_endpoint", "/mcp"),
                     "auth_config": server_config.get("auth_config"),
                     "context": server_config.get("context", {}),
+                    "tool_prefix": server_config.get("tool_prefix"),
                 }
                 gym_configs.append(gym_config)
 
@@ -220,6 +248,7 @@ class BenchmarkExecutor:
 
         merged_tools = []
         tool_to_server_mapping = {}
+        tool_name_mapping = {}
 
         for idx, gym_config in enumerate(self.gym_configs):
             gym_name = gym_config["mcp_server_name"]
@@ -236,6 +265,19 @@ class BenchmarkExecutor:
                 server_tools = await client.list_tools()
                 tool_names = [t.get("name", "unknown") for t in server_tools]
 
+                # Snapshot the complete pre-filter catalog (descriptions and
+                # JSON schemas included) so trace reviewers can tell whether the
+                # model could have discovered a record or supplied a valid enum.
+                self.discovered_tools_snapshot.append(
+                    {
+                        "gym": gym_name,
+                        "url": gym_config["mcp_server_url"],
+                        "endpoint": gym_config.get("mcp_endpoint", "/mcp"),
+                        "database_id": gym_config.get("database_id", ""),
+                        "tools": server_tools,
+                    }
+                )
+
                 logger.info(
                     f"[TOOL_SOURCE] ✅ Discovered {len(server_tools)} tools from gym '{gym_name}'"
                 )
@@ -244,8 +286,14 @@ class BenchmarkExecutor:
                 )
 
                 # Add server metadata to each tool and merge
+                prefix = gym_config.get("tool_prefix")
                 for tool in server_tools:
-                    tool_name = tool.get("name", "unknown")
+                    server_tool_name = tool.get("name", "unknown")
+                    # A prefixed name keeps same-named tools from different
+                    # servers apart; the call is routed with the server's name.
+                    tool_name = (
+                        f"{prefix}__{server_tool_name}" if prefix else server_tool_name
+                    )
 
                     # Check for tool name conflicts across gyms
                     if tool_name in tool_to_server_mapping:
@@ -255,16 +303,29 @@ class BenchmarkExecutor:
                             f"Found in '{existing_gym}' and '{gym_name}'. "
                             f"Using first occurrence from '{existing_gym}'."
                         )
+                        # Recorded so the audit can explain why the discovered
+                        # catalog is larger than the routable tool set.
+                        self.duplicate_tool_names.append(
+                            {
+                                "tool_name": tool_name,
+                                "kept_from": existing_gym,
+                                "skipped_from": gym_name,
+                            }
+                        )
                         continue  # Skip duplicate
 
                     # Enhance tool with gym metadata
                     enhanced_tool = tool.copy()
+                    enhanced_tool["name"] = tool_name
+                    enhanced_tool["_mcp_tool_name"] = server_tool_name
                     enhanced_tool["_mcp_server_name"] = gym_name
                     enhanced_tool["_mcp_server_url"] = gym_config["mcp_server_url"]
                     enhanced_tool["_database_id"] = gym_config["database_id"]
 
                     merged_tools.append(enhanced_tool)
                     tool_to_server_mapping[tool_name] = gym_name
+                    if prefix:
+                        tool_name_mapping[tool_name] = server_tool_name
 
                     logger.debug(
                         f"[TOOL_SOURCE] Tool '{tool_name}' → Gym: {gym_name}, DB: {gym_config['database_id']}"
@@ -285,15 +346,16 @@ class BenchmarkExecutor:
             filtered_tools = [
                 tool
                 for tool in merged_tools
-                if tool.get("name") in self.config.selected_tools
+                if _tool_matches(tool, self.config.selected_tools)
             ]
             logger.info(
                 f"[TOOL_FILTER] ✅ Filtered from {len(merged_tools)} to {len(filtered_tools)} tools"
             )
-            if len(filtered_tools) < len(self.config.selected_tools):
-                missing = set(self.config.selected_tools) - {
-                    t.get("name") for t in filtered_tools
-                }
+            missing = [
+                name for name in self.config.selected_tools
+                if not any(_tool_matches(t, [name]) for t in filtered_tools)
+            ]
+            if missing:
                 logger.warning(f"[TOOL_FILTER] ⚠️  Expected tools not found: {missing}")
             self.available_tools = filtered_tools
         else:
@@ -306,6 +368,154 @@ class BenchmarkExecutor:
             self.available_tools = merged_tools
 
         self.tool_to_server_mapping = tool_to_server_mapping
+        self.tool_name_mapping = tool_name_mapping
+
+    # Allowlist of context keys whose values may be written into a result file.
+    # An allowlist is used deliberately: a denylist of credential-sounding
+    # substrings cannot be made exhaustive, and a single miss writes a secret
+    # to disk. Anything not listed here is recorded by key name only.
+    _IDENTITY_CONTEXT_KEYS = frozenset(
+        {
+            "x-user-email",
+            "x-user-id",
+            "x-user-name",
+            "x-username",
+            "x-user",
+            "x-user-role",
+            "x-role",
+            "x-account-id",
+            "x-account",
+            "x-contact-id",
+            "x-tenant-id",
+            "x-org-id",
+            "x-organization-id",
+            "x-locale",
+            "x-timezone",
+        }
+    )
+
+    @classmethod
+    def _is_identity_context_key(cls, key: Any) -> bool:
+        """True if this key's value is safe to record in a result file.
+        Compared case-insensitively, since HTTP header names are."""
+        normalized = MCPClient._normalize_context_key(str(key)).lower()
+        return normalized in cls._IDENTITY_CONTEXT_KEYS
+
+    def _build_tool_contract_audit(self) -> None:
+        """Record the discovered MCP catalog alongside the contract the model
+        actually receives. Discovery and exposure are kept separate: a task can
+        select a tool the server provides but the model never receives."""
+        discovered_names = [
+            tool.get("name")
+            for server in self.discovered_tools_snapshot
+            for tool in server["tools"]
+        ]
+        # No current orchestrator injects tools outside MCP discovery, so the
+        # exposed contract is exactly available_tools. An orchestrator that
+        # adds its own tools must extend this list, or the audit will
+        # understate the contract the model received.
+        harness_local_tools = []
+        model_exposed_tools = [*self.available_tools, *harness_local_tools]
+        exposed_names = [tool.get("name") for tool in model_exposed_tools]
+        selected = list(self.config.selected_tools or [])
+
+        missing_selected = [
+            name for name in selected
+            if not any(_tool_matches(tool, [name]) for tool in model_exposed_tools)
+        ]
+        # For a selected tool the model never received, offer the closest
+        # discovered names: it separates a renamed tool from an absent one.
+        near_name_matches = {
+            name: difflib.get_close_matches(name, discovered_names, n=3, cutoff=0.6)
+            for name in missing_selected
+        }
+
+        self.tool_contract_audit = {
+            "contract_version": 1,
+            "discovered_tools": self.discovered_tools_snapshot,
+            "discovered_tool_names": discovered_names,
+            "discovered_tool_count": len(discovered_names),
+            "duplicate_tool_names": self.duplicate_tool_names,
+            "selected_tools": selected,
+            "restricted_tools": list(self.config.restricted_tools or []),
+            "exposed_tools": model_exposed_tools,
+            "exposed_tool_names": exposed_names,
+            "exposed_tool_count": len(exposed_names),
+            "harness_local_tools": harness_local_tools,
+            "missing_selected_tools": missing_selected,
+            "near_name_matches": near_name_matches,
+        }
+        logger.info(
+            f"[TOOL_AUDIT] Discovered {len(discovered_names)} tool(s), "
+            f"exposed {len(exposed_names)} to the model"
+        )
+        if self.tool_contract_audit["missing_selected_tools"]:
+            logger.warning(
+                f"[TOOL_AUDIT] ⚠️  Selected tools never exposed to the model: "
+                f"{self.tool_contract_audit['missing_selected_tools']}"
+            )
+
+    def _build_context_audits(self) -> None:
+        """Record context header key names, their normalization, and the
+        non-secret acting identity. Header values for credential-like keys are
+        never recorded."""
+        self.context_header_audit = []
+        gym_identities = {}
+
+        for gym_config in self.gym_configs:
+            gym_name = gym_config["mcp_server_name"]
+            client = self.mcp_clients.get(gym_name)
+            raw_context = gym_config.get("context") or {}
+
+            self.context_header_audit.append(
+                {
+                    "gym_name": gym_name,
+                    "original_keys": [str(key) for key in raw_context],
+                    "normalized_keys": (
+                        client.normalized_context_keys if client else []
+                    ),
+                    "rewrites": (
+                        getattr(client, "context_header_rewrites", []) if client else []
+                    ),
+                }
+            )
+
+            gym_identities[gym_name] = {
+                "source": "task_config.gym_servers_config[].context",
+                "identity": {
+                    str(key): value
+                    for key, value in raw_context.items()
+                    if self._is_identity_context_key(key)
+                },
+                "redacted_keys": [
+                    str(key)
+                    for key in raw_context
+                    if not self._is_identity_context_key(key)
+                ],
+                "auth_config_present": bool(gym_config.get("auth_config")),
+            }
+
+        self.execution_context_audit = {
+            "context_version": 1,
+            "gyms": gym_identities,
+        }
+
+    def _build_run_execution_context(self) -> Dict[str, Any]:
+        """Per-run acting context, including the database created for this run."""
+        return {
+            "context_version": 1,
+            "gyms": [
+                {
+                    "gym_name": gym_config["mcp_server_name"],
+                    "database_id": gym_config.get("database_id", ""),
+                    "seed_database_file": gym_config.get("seed_database_file", ""),
+                    "identity": self.execution_context_audit.get("gyms", {})
+                    .get(gym_config["mcp_server_name"], {})
+                    .get("identity", {}),
+                }
+                for gym_config in self.gym_configs
+            ],
+        }
 
     async def execute_single_run(self, run_number: int) -> Dict[str, Any]:
         """Execute a single benchmark run"""
@@ -341,6 +551,10 @@ class BenchmarkExecutor:
                         "database_id": db_id,
                     }
                 )
+                # Record the id on the gym config too, so verifiers and the
+                # run's audit fields name the database this run actually
+                # mutated instead of the empty placeholder from parse time.
+                gym_conf["database_id"] = db_id
 
             client = self.mcp_clients.get(gym_conf["mcp_server_name"])
             print(
@@ -356,9 +570,67 @@ class BenchmarkExecutor:
             tool_to_server_mapping=self.tool_to_server_mapping,
             available_tools=self.available_tools,
             config=self.config,
+            tool_name_mapping=self.tool_name_mapping,
             **self.orchestrator_kwargs,
         )
-        task_result = await orchestrator.execute()
+        try:
+            task_result = await orchestrator.execute()
+        except Exception as e:
+            # Preserve the trace gathered before the failure; it is often the
+            # only evidence of why the task made no database mutation.
+            logger.error(f"Orchestrator failed during run {run_number}: {e}")
+            partial = orchestrator.get_partial_trace()
+
+            # Still verify: the model may have mutated the database before the
+            # failure, and the end state is the only evidence of that. Verifier
+            # failures here must not mask the original error.
+            partial_verification = {}
+            try:
+                partial_verification = await self._run_verifiers(
+                    {
+                        "final_response": "",
+                        "tool_results": partial["tool_results"],
+                    }
+                )
+            except Exception as verify_error:
+                logger.error(
+                    f"Verifiers also failed after run {run_number} error: {verify_error}"
+                )
+
+            passed = sum(
+                1 for v in partial_verification.values() if v.get("passed", False)
+            )
+            total = len(partial_verification)
+            error_result = {
+                "run_number": run_number,
+                "started_at": start_time.isoformat(),
+                "execution_time_ms": int(
+                    (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                ),
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "traceback": traceback.format_exc(),
+                "model_response": None,
+                "conversation_flow": partial["conversation_flow"],
+                "tools_used": partial["tools_used"],
+                "tool_results": partial["tool_results"],
+                # Distinguishes "the model did nothing" from "this orchestrator
+                # does not capture a trace incrementally".
+                "partial_trace_captured": partial["partial_trace_captured"],
+                "verification_results": partial_verification,
+                "verification_summary": {
+                    "total": total,
+                    "passed": passed,
+                    "failed": total - passed,
+                    "pass_rate": (passed / total if total > 0 else 0.0),
+                },
+                # A run that raised is never a success, even if the verifiers
+                # happen to pass on the partially mutated database.
+                "overall_success": False,
+                "execution_context": self._build_run_execution_context(),
+            }
+            error_result.update(orchestrator.get_result_metadata())
+            return error_result
 
         # Run verifiers
         verification_results = await self._run_verifiers(task_result)
@@ -368,8 +640,17 @@ class BenchmarkExecutor:
             (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
         )
 
-        # Determine overall success
-        overall_success = all(v["passed"] for v in verification_results.values())
+        # Determine overall success. Configured-but-unrun verifiers must not
+        # pass vacuously: all() is True on an empty result set.
+        overall_success = all(
+            v.get("passed", False) for v in verification_results.values()
+        )
+        if not verification_results and self.config.verifiers:
+            logger.error(
+                f"No verifier produced a result for {len(self.config.verifiers)} "
+                f"configured verifier(s); recording run as failed."
+            )
+            overall_success = False
 
         # Calculate verification summary
         total_verifiers = len(verification_results)
@@ -396,13 +677,17 @@ class BenchmarkExecutor:
                 ),
             },
             "overall_success": overall_success,
+            "execution_context": self._build_run_execution_context(),
         }
 
         result.update(orchestrator.get_result_metadata())
 
+        pass_pct = (
+            passed_verifiers / total_verifiers * 100 if total_verifiers > 0 else 0.0
+        )
         logger.info(f"\nRUN {run_number} COMPLETED")
         logger.info(
-            f"Verification: {passed_verifiers}/{total_verifiers} passed ({passed_verifiers/total_verifiers*100:.1f}%)"
+            f"Verification: {passed_verifiers}/{total_verifiers} passed ({pass_pct:.1f}%)"
         )
         logger.info(f"Overall Success: {overall_success}")
         logger.info(f"Execution time: {execution_time_ms}ms")
@@ -418,7 +703,11 @@ class BenchmarkExecutor:
 
         for i, verifier_config in enumerate(self.config.verifiers):
             verifier = VerifierConfig(**verifier_config)
+            # Results are keyed by name, so a repeated name would silently
+            # overwrite an earlier verifier and undercount the task.
             verifier_name = verifier.name or f"verifier_{i+1}"
+            if verifier_name in verification_results:
+                verifier_name = f"{verifier_name} [{i+1}]"
 
             # logger.info(f"Running verifier: {verifier_name} ({verifier.verifier_type})")
 
@@ -441,13 +730,19 @@ class BenchmarkExecutor:
                     context = gym_config.get("context", {})
                     # logger.info(f"  → Using gym '{verifier.gym_name}' database: {database_id}")
                 else:
+                    # Recorded as a failure rather than skipped: dropping it
+                    # silently lets a misconfigured task report success with
+                    # zero verifiers actually checked.
                     logger.warning(
                         f"  ⚠️ Gym '{verifier.gym_name}' not found in gym_servers_config!"
                     )
-                    # verification_results[verifier_name] = {
-                    #     "passed": False,
-                    #     "error": f"Gym '{verifier.gym_name}' not found in configuration",
-                    # }
+                    verification_results[verifier_name] = {
+                        "passed": False,
+                        "error": (
+                            f"Gym '{verifier.gym_name}' not found in configuration. "
+                            f"Available: {[g['mcp_server_name'] for g in self.gym_configs]}"
+                        ),
+                    }
                     continue
             else:
                 # Single-gym or legacy: Use default database_id
@@ -514,10 +809,25 @@ class BenchmarkExecutor:
                     all_runs.append(run_result)
                 except Exception as e:
                     logger.error(f"Run {run_number} failed with error: {e}")
+                    # Keep the envelope shape stable so trace consumers can read
+                    # a failed run without special-casing missing keys.
                     all_runs.append(
                         {
                             "run_number": run_number,
                             "error": str(e),
+                            "error_type": type(e).__name__,
+                            "traceback": traceback.format_exc(),
+                            "model_response": None,
+                            "conversation_flow": [],
+                            "tools_used": [],
+                            "tool_results": [],
+                            "verification_results": {},
+                            "verification_summary": {
+                                "total": 0,
+                                "passed": 0,
+                                "failed": 0,
+                                "pass_rate": 0.0,
+                            },
                             "overall_success": False,
                         }
                     )
@@ -527,7 +837,9 @@ class BenchmarkExecutor:
             result = {
                 "benchmark_config": {
                     "model": f"{self.llm_config.llm_provider}/{self.llm_config.llm_model}",
+                    "task_id": self.config.task_id,
                     "number_of_runs": self.config.number_of_runs,
+                    "system_prompt": self.config.system_prompt,
                     "user_prompt": self.config.user_prompt,
                     "gym_servers": [
                         {
@@ -540,6 +852,9 @@ class BenchmarkExecutor:
                     ],
                     "total_gyms": len(self.gym_configs),
                     "total_tools_available": len(self.available_tools),
+                    "tool_contract_audit": self.tool_contract_audit,
+                    "context_header_audit": self.context_header_audit,
+                    "execution_context_audit": self.execution_context_audit,
                 },
                 "runs": all_runs,
                 "statistics": statistics,

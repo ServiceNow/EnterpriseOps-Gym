@@ -131,6 +131,24 @@ class MCPClient:
         self.auth_config = auth_config
         self.database_id = database_id
         self.context = context or {}
+        # Audit trail of context key -> header key renames, for trace review.
+        self.context_header_rewrites = [
+            {"from": key, "to": self._normalize_context_key(key)}
+            for key in self.context
+            if self._normalize_context_key(key) != key
+        ]
+
+    @staticmethod
+    def _normalize_context_key(key: str) -> str:
+        """Convert a context key to its x-* header form (user_id -> x-user-id)."""
+        if not key.lower().startswith("x-"):
+            return f"x-{key.lower().replace('_', '-')}"
+        return key
+
+    @property
+    def normalized_context_keys(self) -> List[str]:
+        """Header keys actually sent for the configured context."""
+        return [self._normalize_context_key(key) for key in self.context]
 
     def _get_request_id(self) -> int:
         """Get next request ID"""
@@ -188,11 +206,7 @@ class MCPClient:
             if self.context and isinstance(self.context, dict):
                 for key, value in self.context.items():
                     # Convert context keys to header format: user_id -> x-user-id
-                    if not key.lower().startswith("x-"):
-                        header_key = f"x-{key.lower().replace('_', '-')}"
-                    else:
-                        header_key = key
-                    headers[header_key] = str(value)
+                    headers[self._normalize_context_key(key)] = str(value)
 
             # Add extra headers (these override defaults if same key exists)
             if extra_headers:
@@ -321,15 +335,12 @@ class MCPClient:
         # Add any additional context headers (these override instance context)
         if context and isinstance(context, dict):
             for key, value in context.items():
-                if not key.lower().startswith("x-"):
-                    header_key = f"x-{key.lower().replace('_', '-')}"
-                else:
-                    header_key = key
-                extra_headers[header_key] = str(value)
+                extra_headers[self._normalize_context_key(key)] = str(value)
 
         logger.info(f"Calling tool '{tool_name}' with args: {arguments}")
         if extra_headers:
-            logger.info(f"Override headers: {extra_headers}")
+            # Names only: header values can carry credentials.
+            logger.info(f"Override header keys: {sorted(extra_headers)}")
 
         result = await self._send_request("tools/call", params, extra_headers)
         if result.get("success"):

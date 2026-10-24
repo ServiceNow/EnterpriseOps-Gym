@@ -32,6 +32,7 @@ class LLMClient:
         api_endpoint: Optional[str] = None,
         api_version: Optional[str] = None,
         region: Optional[str] = None,
+        aws_secret_key: Optional[str] = None,
         temperature: float = 0.0,
         max_tokens: int = 4096,
         top_p: Optional[float] = None,
@@ -45,6 +46,7 @@ class LLMClient:
         self.custom_api_endpoint = api_endpoint
         self.custom_api_version = api_version
         self.region = region
+        self.aws_secret_key = aws_secret_key
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.top_p = top_p
@@ -86,6 +88,13 @@ class LLMClient:
                     "max_tokens": self.max_tokens,
                     "additional_model_request_fields": extra_fields or None,
                 }
+                # If explicit AWS credentials are supplied in the LLM config, use
+                # them instead of falling back to boto3's default credential chain
+                # (env vars / ~/.aws/credentials / IAM role), which may not be set
+                # up in every environment this evaluates in.
+                if self.api_key and self.aws_secret_key:
+                    bedrock_kwargs["aws_access_key_id"] = self.api_key
+                    bedrock_kwargs["aws_secret_access_key"] = self.aws_secret_key
                 # `model` may be an inference-profile ARN, which carries no model
                 # family in it. Without base_model_id the profile cannot resolve,
                 # so capability detection falls back to defaults.

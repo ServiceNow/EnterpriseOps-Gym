@@ -488,11 +488,13 @@ class ExecutorSubAgent:
         available_tools: List[Dict[str, Any]],
         system_prompt: str,
         working_memory: WorkingMemory,
+        tool_name_mapping: Optional[Dict[str, str]] = None,
     ):
         self.subtask = subtask
         self.llm_client = llm_client
         self.mcp_clients = mcp_clients
         self.tool_to_server_mapping = tool_to_server_mapping
+        self.tool_name_mapping = tool_name_mapping or {}
         self.available_tools = available_tools
         self.system_prompt = system_prompt
         self.working_memory = working_memory
@@ -601,7 +603,9 @@ Ready? Begin executing your subtask now."""
 
                     logger.info(f"  🔧 Executing tool: {tool_name} on {target_gym}")
 
-                    tool_result = await target_client.call_tool(tool_name, tool_args)
+                    tool_result = await target_client.call_tool(
+                        self.tool_name_mapping.get(tool_name, tool_name), tool_args
+                    )
 
                     if tool_name not in tools_used:
                         tools_used.append(tool_name)
@@ -886,6 +890,7 @@ class DecomposingPlannerOrchestrator(AgentOrchestrator):
                 available_tools=self.available_tools,
                 system_prompt=self.config.system_prompt,
                 working_memory=working_memory,
+                tool_name_mapping=self.tool_name_mapping,
             )
 
             result = await subagent.execute(max_iterations=self.max_iterations)

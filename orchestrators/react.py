@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from typing import Any, Dict, List, TYPE_CHECKING
 
 from benchmark.mcp_client import MCPClient
@@ -14,22 +15,51 @@ from .base import AgentOrchestrator
 logger = logging.getLogger(__name__)
 
 
+def apply_prompt_overlay(system_prompt: str, user_prompt: str):
+    """Wrap task prompts with meta-instructions from the JSON file named by $PROMPT_OVERLAY.
+
+    Keys: system_prefix, system_suffix, user_prefix, user_suffix, policy_to_user (bool).
+    The task-supplied text is always passed through verbatim.
+    """
+    path = os.environ.get("PROMPT_OVERLAY")
+    if not path:
+        return system_prompt, user_prompt
+    with open(path) as f:
+        ov = json.load(f)
+    sp, ss = ov.get("system_prefix", ""), ov.get("system_suffix", "")
+    up, us = ov.get("user_prefix", ""), ov.get("user_suffix", "")
+    if ov.get("policy_to_user"):
+        new_system = (sp + ss).strip() or "You are a helpful enterprise operations agent."
+        new_user = (
+            f"<operating_policy>\n{system_prompt}\n</operating_policy>\n\n"
+            f"{up}<user_request>\n{user_prompt}\n</user_request>{us}"
+        )
+        return new_system, new_user
+    return f"{sp}{system_prompt}{ss}", f"{up}{user_prompt}{us}"
+
+
 class ReactOrchestrator(AgentOrchestrator):
+
+    supports_partial_trace = True
 
     async def execute(self) -> Dict[str, Any]:
         """Execute the ReAct (Reason-Act-Observe) loop until the LLM stops
         calling tools or max_iterations is reached."""
+        system_prompt, user_prompt = apply_prompt_overlay(
+            self.config.system_prompt, self.config.user_prompt
+        )
         messages = [
-            SystemMessage(content=self.config.system_prompt),
-            HumanMessage(content=self.config.user_prompt),
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
         ]
 
-        conversation_flow = [
-            {"type": "system_message", "content": self.config.system_prompt},
-            {"type": "user_message", "content": self.config.user_prompt},
+        self.conversation_flow = [
+            {"type": "system_message", "content": system_prompt},
+            {"type": "user_message", "content": user_prompt},
         ]
-        tools_used = []
-        tool_results = []
+        conversation_flow = self.conversation_flow
+        tools_used = self.tools_used
+        tool_results = self.tool_results
 
         for iteration in range(self.max_iterations):
             logger.info(f"\n--- Iteration {iteration + 1} ---")
