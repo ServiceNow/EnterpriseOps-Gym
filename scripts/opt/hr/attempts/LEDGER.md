@@ -13,6 +13,7 @@
 | step04_v4 | v4 | 4 | 50/56 89.3% | 103/128 80.5% | 153/184 83.2% | Request ledger with cited calls, unused-tool check, per-sentence event tagging, per-field cross-check. Train up but test flat (possible train/test divergence). |
 | step04_v4_r2 | v4 | no (repeat) | 46/56 82.1% | 104/128 81.2% | 150/184 81.5% | v4 two-run mean: train 85.7 / test 80.9 / all 82.3. Ties v3; content plateau around 81% test. v3 kept as base (shorter, slightly higher test). |
 | step05_v5_prefix | v5_prefix | 5 | 49/56 87.5% | 105/128 82.0% | 154/184 83.7% | v3 text placed before the policy (system_prefix), user_suffix reminder kept |
+| step05_v5_prefix_r2 | v5_prefix | no (repeat) | 48/56 85.7% | 105/128 82.0% | 153/184 83.2% | prefix two-run mean: train 86.6 / test 82.0 / all 83.4 |
 | step06_v6_ptu | v6_ptu | 6 | 47/56 83.9% | 108/128 84.4% | 155/184 84.2% | v3 text as the system message; task policy moved into the user turn (`<operating_policy>`). Best single test run. |
 
 ## Leakage audits
@@ -22,6 +23,7 @@
   - MEDIUM: "not done through this assistant" paraphrased a policy idiom in 3–5 configs; replaced with "forbids creating".
   - LOW–MEDIUM: "raising a request" echoed one train prompt; removed.
   - LOW: "which team you belong to" and "narrow it down with the other details" neutralized. The JSON was re-validated and none of the flagged phrases remain.
+- v7_ptu: PASS. The "in addition to" sentence had the same shape as a sentence in 1 test config, so it was rewritten to "do not replace … perform both". "Binding", "operator" and "merge" hits are in unrelated senses. "Reflects" wording from the subagent was deliberately not used (flagged in the v2 audit).
 - v5_prefix / v6_ptu: v3 text verbatim, placement only. The only change is the phrase "policy above", now "policy below" or "operating policy given in the user message". The v3 audit carries over.
 - v4: PASS. Optional rewrite applied: the synonym examples ("transfer / change of owner / registering / opening"), which may trace back to one train task, were replaced with a neutral "different verb for the same event" wording.
 - v3: PASS. One optional rewrite applied: "classification levels" was closest to a single train task, so it now reads "categories or tiers by criteria". New phrases are generic (0–57 config hits, no entity or value content). Rejected subagent wording that mirrored a case status into a notification status (flagged in the v2 audit).
