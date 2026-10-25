@@ -21,6 +21,7 @@
 | step08_v8_ptu | v8_ptu | 8 | 50/56 89.3% | 106/128 82.8% | 156/184 84.8% | v7 plus a user-stated-value rule and field-level role limits |
 | step08_v8_ptu_r2 | v8_ptu | no (repeat) | 49/56 87.5% | 104/128 81.2% | 153/184 83.2% | v8 two-run mean: train 88.4 / test 82.0 / all 84.0. Train up, test down vs v7 (divergence), so v7 kept. |
 | step09_v9_ptu_short | v9_ptu_short | 9 | 49/56 87.5% | 108/128 84.4% | 157/184 85.3% | v8 compressed by 44%, same rules. Best single run. |
+| step09_v9_ptu_short_r2 | v9_ptu_short | no (repeat) | 49/56 87.5% | 105/128 82.0% | 154/184 83.7% | v9 two-run mean: train 87.5 / test 83.2 / all 84.5. New best on all three. |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).

@@ -1,0 +1,3 @@
+train: results/opt/hr/step09_v9_ptu_short_r2/run_1: 49/56 = 87.5%  (failed 7, missing 0)
+test: results/opt/hr/step09_v9_ptu_short_r2/run_1: 105/128 = 82.0%  (failed 23, missing 0)
+all: results/opt/hr/step09_v9_ptu_short_r2/run_1: 154/184 = 83.7%  (failed 30, missing 0)
