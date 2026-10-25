@@ -19,6 +19,7 @@
 | step07_v7_ptu | v7_ptu | 7 | 48/56 85.7% | 106/128 82.8% | 154/184 83.7% | ptu plus binding-policy header, verbatim templates and fixed values, no-merge rule, per-ask audit |
 | step07_v7_ptu_r2 | v7_ptu | no (repeat) | 49/56 87.5% | 106/128 82.8% | 155/184 84.2% | v7 two-run mean: train 86.6 / test 82.8 / all 84.0. Ties v6 on test, better on train and overall, stable. New best. |
 | step08_v8_ptu | v8_ptu | 8 | 50/56 89.3% | 106/128 82.8% | 156/184 84.8% | v7 plus a user-stated-value rule and field-level role limits |
+| step08_v8_ptu_r2 | v8_ptu | no (repeat) | 49/56 87.5% | 104/128 81.2% | 153/184 83.2% | v8 two-run mean: train 88.4 / test 82.0 / all 84.0. Train up, test down vs v7 (divergence), so v7 kept. |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).
