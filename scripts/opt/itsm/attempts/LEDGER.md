@@ -15,9 +15,11 @@
 | step05_v5 | v5 (v3 + net-positive v4 additions: all-branch quoting w/ continuations, End state + ordering, two-record refs, search grid, unconditional count, audit vs End state) | 5 | 43/53 81.1% | 87/128 68.0% | 130/181 71.8% | best train, weaker test → divergence; repeat |
 | step05_v5_r2 | v5 | – (repeat) | 41/53 77.4% | 93/128 72.7% | 134/181 74.0% | v5 2-run mean: train 79.2 / test 70.3 / all 72.9. v3, v4, v5 all = 72.9 overall → content plateau; next: structure |
 | step06_v6 | v6 (v5 text, policy_to_user: overlay = system msg, policy + request in user turn) | 6 | 40/53 75.5% | 91/128 71.1% | 131/181 72.4% | same band as v3–v5; no structural gain → not repeated |
+| step07_v7 | v7 (v5 + 10-char segment counting + literal level mapping) | 7 | 41/53 77.4% | 89/128 69.5% | 130/181 71.8% | segment counting fixed both train truncation tasks; level clause didn't fix its target; test in band |
 
 ## Leakage audits
 - v1: audit flagged the length-limit clause (close paraphrase of a policy sentence in 4–5 tasks, encoded the verifier outcome) and, weakly, "never rely on the tool's own default" (2 tasks). Both rewritten generically; field-type list also generalized. No entity names/IDs/values.
+- v8: PASS (pure condensation of v7; all new phrasings 0 tasks; only rare 4-grams are generic connectives).
 - v7: PASS (segment-counting and level-mapping phrases occur in 0 tasks; level-mapping clause shares no distinctive words with the one priority task that motivated it — generic, but flagged as an overfitting risk to watch on test). Clarified "wording" → "policy's wording for the resulting value".
 - v6: v5 text verbatim (policy_to_user structure) + header pointing at the <operating_policy>/<user_request> tags; new terms occur in 0 configs (direct grep; no subagent needed for a structural-only delta). PASS.
 - v5: PASS (composed of audited v3/v4 text; only new phrase "(with any sentences that continue it)" → 0 tasks).
