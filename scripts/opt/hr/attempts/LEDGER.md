@@ -4,6 +4,12 @@
 |---|---|---|---|---|---|---|
 | baseline | none | no | 45/56 80.4% | 94/128 73.4% | 139/184 75.5% | 11 train failures analysed (attempts/baseline/analysis.md) |
 | baseline_r2 | none | no (repeat) | 43/56 76.8% | 99/128 77.3% | 142/184 77.2% | Two-run baseline mean: train 78.6 / test 75.4 / all 76.4. Test noise is about ±4pp. |
+| step01_v1 | v1 | 1 | 46/56 82.1% | 102/128 79.7% | 148/184 80.4% | 9-rule protocol appended to the system prompt. Train gained e1d3c37d; lost 4 tasks vs the baseline union. The 6 targeted tasks still fail 3/3. |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).
+- v2: FLAGGED, then fixed before the run.
+  - HIGH: a "descriptive wording is not a value / case status is not notification status" example. It quoted a user phrase found in 6 configs and contradicted 1 test policy; replaced with a generic cross-record-type rule.
+  - MEDIUM: "not done through this assistant" paraphrased a policy idiom in 3–5 configs; replaced with "forbids creating".
+  - LOW–MEDIUM: "raising a request" echoed one train prompt; removed.
+  - LOW: "which team you belong to" and "narrow it down with the other details" neutralized. The JSON was re-validated and none of the flagged phrases remain.
