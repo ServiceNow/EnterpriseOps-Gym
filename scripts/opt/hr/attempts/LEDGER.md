@@ -17,6 +17,7 @@
 | step06_v6_ptu | v6_ptu | 6 | 47/56 83.9% | 108/128 84.4% | 155/184 84.2% | v3 text as the system message; task policy moved into the user turn (`<operating_policy>`). Best single test run. |
 | step06_v6_ptu_r2 | v6_ptu | no (repeat) | 47/56 83.9% | 104/128 81.2% | 151/184 82.1% | ptu two-run mean: train 83.9 / test 82.8 / all 83.2. Effectively tied with prefix (82.0 test, 86.6 train). |
 | step07_v7_ptu | v7_ptu | 7 | 48/56 85.7% | 106/128 82.8% | 154/184 83.7% | ptu plus binding-policy header, verbatim templates and fixed values, no-merge rule, per-ask audit |
+| step07_v7_ptu_r2 | v7_ptu | no (repeat) | 49/56 87.5% | 106/128 82.8% | 155/184 84.2% | v7 two-run mean: train 86.6 / test 82.8 / all 84.0. Ties v6 on test, better on train and overall, stable. New best. |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).
