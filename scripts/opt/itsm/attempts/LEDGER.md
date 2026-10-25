@@ -16,6 +16,8 @@
 | step05_v5_r2 | v5 | – (repeat) | 41/53 77.4% | 93/128 72.7% | 134/181 74.0% | v5 2-run mean: train 79.2 / test 70.3 / all 72.9. v3, v4, v5 all = 72.9 overall → content plateau; next: structure |
 | step06_v6 | v6 (v5 text, policy_to_user: overlay = system msg, policy + request in user turn) | 6 | 40/53 75.5% | 91/128 71.1% | 131/181 72.4% | same band as v3–v5; no structural gain → not repeated |
 | step07_v7 | v7 (v5 + 10-char segment counting + literal level mapping) | 7 | 41/53 77.4% | 89/128 69.5% | 130/181 71.8% | segment counting fixed both train truncation tasks; level clause didn't fix its target; test in band |
+| step08_v8 | v8 (v7 condensed to ~3.1k chars) | 8 | 39/53 73.6% | 87/128 68.0% | 126/181 69.6% | condensation hurts → detail matters; not repeated |
+| step04_v4_r3 | v4 | – (repeat) | – | – | – | ABORTED at user request (130/181 traces); excluded; results dir renamed `step04_v4_r3_ABORTED` |
 
 ## Leakage audits
 - v1: audit flagged the length-limit clause (close paraphrase of a policy sentence in 4–5 tasks, encoded the verifier outcome) and, weakly, "never rely on the tool's own default" (2 tasks). Both rewritten generically; field-type list also generalized. No entity names/IDs/values.
