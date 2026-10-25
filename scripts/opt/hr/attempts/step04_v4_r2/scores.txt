@@ -1,0 +1,3 @@
+train: results/opt/hr/step04_v4_r2/run_1: 46/56 = 82.1%  (failed 10, missing 0)
+test: results/opt/hr/step04_v4_r2/run_1: 104/128 = 81.2%  (failed 24, missing 0)
+all: results/opt/hr/step04_v4_r2/run_1: 150/184 = 81.5%  (failed 34, missing 0)
