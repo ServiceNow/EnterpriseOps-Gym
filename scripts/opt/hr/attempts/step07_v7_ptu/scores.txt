@@ -1,0 +1,3 @@
+train: results/opt/hr/step07_v7_ptu/run_1: 48/56 = 85.7%  (failed 8, missing 0)
+test: results/opt/hr/step07_v7_ptu/run_1: 106/128 = 82.8%  (failed 22, missing 0)
+all: results/opt/hr/step07_v7_ptu/run_1: 154/184 = 83.7%  (failed 30, missing 0)

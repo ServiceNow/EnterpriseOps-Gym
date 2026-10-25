@@ -16,6 +16,7 @@
 | step05_v5_prefix_r2 | v5_prefix | no (repeat) | 48/56 85.7% | 105/128 82.0% | 153/184 83.2% | prefix two-run mean: train 86.6 / test 82.0 / all 83.4 |
 | step06_v6_ptu | v6_ptu | 6 | 47/56 83.9% | 108/128 84.4% | 155/184 84.2% | v3 text as the system message; task policy moved into the user turn (`<operating_policy>`). Best single test run. |
 | step06_v6_ptu_r2 | v6_ptu | no (repeat) | 47/56 83.9% | 104/128 81.2% | 151/184 82.1% | ptu two-run mean: train 83.9 / test 82.8 / all 83.2. Effectively tied with prefix (82.0 test, 86.6 train). |
+| step07_v7_ptu | v7_ptu | 7 | 48/56 85.7% | 106/128 82.8% | 154/184 83.7% | ptu plus binding-policy header, verbatim templates and fixed values, no-merge rule, per-ask audit |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).
@@ -24,6 +25,7 @@
   - MEDIUM: "not done through this assistant" paraphrased a policy idiom in 3–5 configs; replaced with "forbids creating".
   - LOW–MEDIUM: "raising a request" echoed one train prompt; removed.
   - LOW: "which team you belong to" and "narrow it down with the other details" neutralized. The JSON was re-validated and none of the flagged phrases remain.
+- v8_ptu: PASS with one advisory. The "claim that the current value is already right" parenthetical was closest to about 7 user prompts, mostly test, so it was rewritten to "their belief about the current value". The field-level role-limit pattern appears in 23 system prompts (8 train / 15 test), so it is generic. A diff confirms only 2 sentences changed vs v7.
 - v7_ptu: PASS. The "in addition to" sentence had the same shape as a sentence in 1 test config, so it was rewritten to "do not replace … perform both". "Binding", "operator" and "merge" hits are in unrelated senses. "Reflects" wording from the subagent was deliberately not used (flagged in the v2 audit).
 - v5_prefix / v6_ptu: v3 text verbatim, placement only. The only change is the phrase "policy above", now "policy below" or "operating policy given in the user message". The v3 audit carries over.
 - v4: PASS. Optional rewrite applied: the synonym examples ("transfer / change of owner / registering / opening"), which may trace back to one train task, were replaced with a neutral "different verb for the same event" wording.
