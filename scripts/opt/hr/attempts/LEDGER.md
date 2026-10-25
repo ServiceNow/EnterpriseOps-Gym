@@ -5,6 +5,7 @@
 | baseline | none | no | 45/56 80.4% | 94/128 73.4% | 139/184 75.5% | 11 train failures analysed (attempts/baseline/analysis.md) |
 | baseline_r2 | none | no (repeat) | 43/56 76.8% | 99/128 77.3% | 142/184 77.2% | Two-run baseline mean: train 78.6 / test 75.4 / all 76.4. Test noise is about ±4pp. |
 | step01_v1 | v1 | 1 | 46/56 82.1% | 102/128 79.7% | 148/184 80.4% | 9-rule protocol appended to the system prompt. Train gained e1d3c37d; lost 4 tasks vs the baseline union. The 6 targeted tasks still fail 3/3. |
+| step01_v1_r2 | v1 | no (repeat) | 46/56 82.1% | 104/128 81.2% | 150/184 81.5% | v1 two-run mean: train 82.1 / test 80.5 / all 81.0, +5.1pp test over baseline |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).
