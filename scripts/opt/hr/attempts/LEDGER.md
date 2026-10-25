@@ -20,6 +20,7 @@
 | step07_v7_ptu_r2 | v7_ptu | no (repeat) | 49/56 87.5% | 106/128 82.8% | 155/184 84.2% | v7 two-run mean: train 86.6 / test 82.8 / all 84.0. Ties v6 on test, better on train and overall, stable. New best. |
 | step08_v8_ptu | v8_ptu | 8 | 50/56 89.3% | 106/128 82.8% | 156/184 84.8% | v7 plus a user-stated-value rule and field-level role limits |
 | step08_v8_ptu_r2 | v8_ptu | no (repeat) | 49/56 87.5% | 104/128 81.2% | 153/184 83.2% | v8 two-run mean: train 88.4 / test 82.0 / all 84.0. Train up, test down vs v7 (divergence), so v7 kept. |
+| step09_v9_ptu_short | v9_ptu_short | 9 | 49/56 87.5% | 108/128 84.4% | 157/184 85.3% | v8 compressed by 44%, same rules. Best single run. |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).
@@ -28,6 +29,7 @@
   - MEDIUM: "not done through this assistant" paraphrased a policy idiom in 3–5 configs; replaced with "forbids creating".
   - LOW–MEDIUM: "raising a request" echoed one train prompt; removed.
   - LOW: "which team you belong to" and "narrow it down with the other details" neutralized. The JSON was re-validated and none of the flagged phrases remain.
+- v10_ptu_min: a further compression of v9 (1450 chars). Previously audited wording only, with no examples, so the audits carry over.
 - v9_ptu_short: a compression of v8 (5748 → 3207 chars) that uses only previously audited wording. No new concepts, several examples removed, so the v1–v8 audits carry over.
 - v8_ptu: PASS with one advisory. The "claim that the current value is already right" parenthetical was closest to about 7 user prompts, mostly test, so it was rewritten to "their belief about the current value". The field-level role-limit pattern appears in 23 system prompts (8 train / 15 test), so it is generic. A diff confirms only 2 sentences changed vs v7.
 - v7_ptu: PASS. The "in addition to" sentence had the same shape as a sentence in 1 test config, so it was rewritten to "do not replace … perform both". "Binding", "operator" and "merge" hits are in unrelated senses. "Reflects" wording from the subagent was deliberately not used (flagged in the v2 audit).
