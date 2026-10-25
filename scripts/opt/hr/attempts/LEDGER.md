@@ -15,6 +15,7 @@
 | step05_v5_prefix | v5_prefix | 5 | 49/56 87.5% | 105/128 82.0% | 154/184 83.7% | v3 text placed before the policy (system_prefix), user_suffix reminder kept |
 | step05_v5_prefix_r2 | v5_prefix | no (repeat) | 48/56 85.7% | 105/128 82.0% | 153/184 83.2% | prefix two-run mean: train 86.6 / test 82.0 / all 83.4 |
 | step06_v6_ptu | v6_ptu | 6 | 47/56 83.9% | 108/128 84.4% | 155/184 84.2% | v3 text as the system message; task policy moved into the user turn (`<operating_policy>`). Best single test run. |
+| step06_v6_ptu_r2 | v6_ptu | no (repeat) | 47/56 83.9% | 104/128 81.2% | 151/184 82.1% | ptu two-run mean: train 83.9 / test 82.8 / all 83.2. Effectively tied with prefix (82.0 test, 86.6 train). |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).
