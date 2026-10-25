@@ -12,6 +12,8 @@
 | step03_v3_r2 | v3 | no (repeat) | 48/56 85.7% | 103/128 80.5% | 151/184 82.1% | v3 two-run mean: train 85.7 / test 81.2 / all 82.6. Current best. |
 | step04_v4 | v4 | 4 | 50/56 89.3% | 103/128 80.5% | 153/184 83.2% | Request ledger with cited calls, unused-tool check, per-sentence event tagging, per-field cross-check. Train up but test flat (possible train/test divergence). |
 | step04_v4_r2 | v4 | no (repeat) | 46/56 82.1% | 104/128 81.2% | 150/184 81.5% | v4 two-run mean: train 85.7 / test 80.9 / all 82.3. Ties v3; content plateau around 81% test. v3 kept as base (shorter, slightly higher test). |
+| step05_v5_prefix | v5_prefix | 5 | 49/56 87.5% | 105/128 82.0% | 154/184 83.7% | v3 text placed before the policy (system_prefix), user_suffix reminder kept |
+| step06_v6_ptu | v6_ptu | 6 | 47/56 83.9% | 108/128 84.4% | 155/184 84.2% | v3 text as the system message; task policy moved into the user turn (`<operating_policy>`). Best single test run. |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).
