@@ -9,6 +9,7 @@
 | step02_v2 | v2 | 2 | 46/56 82.1% | 102/128 79.7% | 148/184 80.4% | Visible Policy check and Final audit plus regression fixes. Train churn vs v1: +5 (727d852c, 9e1a6b99, bce7688f, 07f8ca42, 7e1ab92b) / −8. |
 | step02_v2_r2 | v2 | no (repeat) | 45/56 80.4% | 104/128 81.2% | 149/184 81.0% | v2 two-run mean: train 81.2 / test 80.5 / all 80.7. Ties v1; the gains were offset by 5 overlay-caused losses (attempts/step02_v2/analysis.md). |
 | step03_v3 | v3 | 3 | 48/56 85.7% | 105/128 82.0% | 153/184 83.2% | FIRES/CHECK/N/A tags, full rule scan, positive field rule, scoped policy-over-user. Best single run so far. |
+| step03_v3_r2 | v3 | no (repeat) | 48/56 85.7% | 103/128 80.5% | 151/184 82.1% | v3 two-run mean: train 85.7 / test 81.2 / all 82.6. Current best. |
 
 ## Leakage audits
 - v1: PASS with one soft flag. Rule 4's example list matched the catalog record types in a 2-config prohibition family, so it was replaced with "supporting, parent/child, or linked configuration records". Everything else is generic (terms appear in 42–175 configs).
