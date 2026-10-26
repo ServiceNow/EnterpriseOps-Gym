@@ -19,6 +19,11 @@
 | step08_v8 | v8 (v7 condensed to ~3.1k chars) | 8 | 39/53 73.6% | 87/128 68.0% | 126/181 69.6% | condensation hurts → detail matters; not repeated |
 | step04_v4_r3 | v4 | – (repeat) | – | – | – | ABORTED at user request (130/181 traces); excluded; results dir renamed `step04_v4_r3_ABORTED` |
 
+## Cross-model check (not part of the optimization)
+| attempt | model | overlay | train | test | all | notes |
+|---|---|---|---|---|---|---|
+| opus45high_v4 | conf/llm/claude_opus_4p5_high.json | v4 | 36/53 67.9% | 89/128 69.5% | 125/181 69.1% | single run; first attempt aborted (config max_tokens > 64k Bedrock limit; user fixed config); no Opus no-overlay baseline yet |
+
 ## Leakage audits
 - v1: audit flagged the length-limit clause (close paraphrase of a policy sentence in 4–5 tasks, encoded the verifier outcome) and, weakly, "never rely on the tool's own default" (2 tasks). Both rewritten generically; field-type list also generalized. No entity names/IDs/values.
 - v8: PASS (pure condensation of v7; all new phrasings 0 tasks; only rare 4-grams are generic connectives).
