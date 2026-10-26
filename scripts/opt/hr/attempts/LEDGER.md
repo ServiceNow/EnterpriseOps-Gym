@@ -39,3 +39,8 @@
 - v5_prefix / v6_ptu: v3 text verbatim, placement only. The only change is the phrase "policy above", now "policy below" or "operating policy given in the user message". The v3 audit carries over.
 - v4: PASS. Optional rewrite applied: the synonym examples ("transfer / change of owner / registering / opening"), which may trace back to one train task, were replaced with a neutral "different verb for the same event" wording.
 - v3: PASS. One optional rewrite applied: "classification levels" was closest to a single train task, so it now reads "categories or tiers by criteria". New phrases are generic (0–57 config hits, no entity or value content). Rejected subagent wording that mirrored a case status into a notification status (flagged in the v2 audit).
+
+## Cross-model evaluation (not optimization steps)
+| attempt | model | overlay | train | test | all | notes |
+|---|---|---|---|---|---|---|
+| opus45_v9_ptu_short_fix | claude_opus_4p5_high | v9_ptu_short | 48/56 85.7% | 108/128 84.4% | 156/184 84.8% | single run; 0 missing, 0 errors. The first attempt (opus45_v9_ptu_short) is invalid: config max_tokens exceeded the 64k model cap, every call was rejected and only 8 tasks ran. It is not archived. |
